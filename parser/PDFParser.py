@@ -64,9 +64,9 @@ class PDFParser:
         def is_valid_header(header):
             """Only %PDF-1.[0-7] is accepted."""
 
-            return len(header) == 8 and \
+            return (len(header) == 8 and \
                     header.startswith('%PDF-1.') and \
-                    header[7] in '01234567'
+                    header[7] in '01234567')
 
         # should test whether or not it is a valid pdf
         if not is_valid_header(header):
