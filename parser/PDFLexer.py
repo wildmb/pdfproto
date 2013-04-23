@@ -79,11 +79,14 @@ class PDFLexer:
         elif ch == '(':
             return self._get_literal_string(stream_pos)
         elif ch == '/':
-            return None
+            return self._get_name(stream_pos)
         elif ch == '[':
             return None
         elif ch == '<':
-            return self._get_hexadecimal_string(stream_pos)
+            next_char, next_char_pos = self._get_single_byte(stream_pos + 1)
+            if next_char != '<':
+                return self._get_hexadecimal_string(stream_pos)
+
         elif ch == '{':
             return None
 
