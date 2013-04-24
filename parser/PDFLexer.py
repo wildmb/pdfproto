@@ -18,7 +18,7 @@ class PDFBaseObject:
     Attribute:
         start_pos: An integer indicating the starting position of the
             data.
-        end_pos: An integer indicating the end position ( not included)
+        end_pos: An integer indicating the end position (not included)
             of the data.
         data: Transformed python object.
 
@@ -33,6 +33,16 @@ class PDFBaseObject:
 class PDFNumericObject(PDFBaseObject): pass
 class PDFStringObject(PDFBaseObject): pass
 class PDFNameObject(PDFBaseObject): pass
+class PDFDictObject(PDFBaseObject): pass
+class PDFIndirectRefObject(PDFBaseObject):
+
+    @property
+    def object_num(self):
+        return self.data[0]
+
+    @property
+    def generation_num(self):
+        return self.data[1]
 
 
 class PDFLexer:
@@ -74,7 +84,13 @@ class PDFLexer:
 
         ch, stream_pos = self._get_single_byte(pos)
 
-        if ch in '0123456789+-.':
+        if ch in self.NUMERIC_CHARACTERS:
+            if ch.isdigit():
+                try:
+                    return self._get_indirect_reference(stream_pos)
+                except PDFLexerError:
+                    pass
+
             return self._get_number(stream_pos)
         elif ch == '(':
             return self._get_literal_string(stream_pos)
@@ -84,7 +100,9 @@ class PDFLexer:
             return None
         elif ch == '<':
             next_char, next_char_pos = self._get_single_byte(stream_pos + 1)
-            if next_char != '<':
+            if next_char == '<' and next_char_pos == stream_pos + 1:
+                return None
+            else:
                 return self._get_hexadecimal_string(stream_pos)
 
         elif ch == '{':
@@ -177,10 +195,11 @@ class PDFLexer:
         assert(self.stream[stream_pos] == '(')
 
         ret = PDFStringObject()
-        ret.start_pos = ret.end_pos = stream_pos
+        ret.start_pos = stream_pos
+        ret.end_pos = stream_pos + 1
 
-        num_parentheses = 0
-        prev_ch = None
+        num_parentheses = 1
+        string_data = []
 
         # retrieve a complete literal string based on balanced
         # parentheses
@@ -188,24 +207,31 @@ class PDFLexer:
             ch = self.stream[ret.end_pos]
 
             if ch == '(':
-                if prev_ch != '\\':
+                if  (len(string_data) == 0) or \
+                    (len(string_data) > 0 and string_data[-1] != '\\'):
                     num_parentheses += 1
             elif ch == ')':
-                if prev_ch != '\\':
+                # if two reverse solidus are before, then it won't be
+                # treated as escape
+                if len(string_data) > 0 and string_data[-1] == '\\':
+                    if len(string_data) > 1 and string_data[-2] == '\\':
+                        num_parentheses -= 1
+                else:
                     num_parentheses -= 1
 
-                if num_parentheses == 0:
-                    ret.end_pos += 1
-                    break
+            if num_parentheses == 0:
+                break
 
-            prev_ch = ch
+            string_data.append(ch)
             ret.end_pos += 1
 
-        if self.stream[ret.end_pos - 1] != ')':
+        if self.stream[ret.end_pos] != ')':
+            print self.stream[stream_pos:ret.end_pos]
             logger.error('Unterminated literal string')
             raise PDFLexerError('Unterminated literal string')
 
-        literal_str = self.stream[(ret.start_pos + 1):(ret.end_pos - 1)]
+        ret.end_pos += 1
+        literal_str = ''.join(string_data)
 
         # An EOL marker appearing within a literal string without a
         # preceding REVERSE SOLIDUS shall be treated as a byte value of
@@ -290,3 +316,43 @@ class PDFLexer:
         ret.data = name
 
         return ret
+
+    def _get_indirect_reference(self, stream_pos):
+        """Try to get an indirect reference at stream_pos."""
+
+        assert(self.stream[stream_pos].isdigit())
+
+        try:
+            object_num = self._get_number(stream_pos)
+            if not isinstance(object_num.data, int):
+                raise PDFLexerError()
+        except PDFLexerError, e:
+            raise PDFLexerError('Invalid indirect reference(object number)')
+
+        try:
+            generation_num = self._get_number(object_num.end_pos + 1)
+            if not isinstance(generation_num.data, int):
+                raise PDFLexerError()
+        except PDFLexerError, e:
+            raise PDFLexerError('Invalid indirect reference(generation number')
+
+        if self.stream[min(self.max_pos, generation_num.end_pos + 1)] != 'R':
+            raise PDFLexerError('Invalid indirect reference')
+
+        ret = PDFIndirectRefObject()
+        ret.start_pos = stream_pos
+        ret.end_pos = generation_num.end_pos + 1 + 1
+        ret.data = (object_num.data, generation_num.data)
+
+        return ret
+
+    def _get_dictionary(self, stream_pos):
+        """Try to get a dictionary object at stream_pos."""
+
+        assert(self.stream[stream_pos] == '<')
+        assert(self.stream[stream_pos + 1] == '<')
+
+    def _get_array(self, stream_pos):
+        """Try to get an array object at stream_pos."""
+
+        assert(self.stream[stream_pos] == '[')

@@ -8,7 +8,7 @@ from tempfile import NamedTemporaryFile
 import pytest
 
 # local library imports
-from ..PDFLexer import PDFLexer, PDFLexerError, PDFNumericObject
+from ..PDFLexer import PDFLexer, PDFLexerError
 
 
 class TestPDFLexer:
@@ -77,6 +77,7 @@ class TestPDFLexer:
             with closing(NamedTemporaryFile()) as f:
                 content = ''.join(('(', literal, ')'))
                 f.write(bytearray(content))
+                f.write(self._rand_white_space() + self._rand_string(8))
                 f.flush()
 
                 with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
@@ -85,6 +86,10 @@ class TestPDFLexer:
                     assert string_object.data == expect_val
                     assert string_object.start_pos == 0
                     assert string_object.end_pos == len(content)
+
+    def _rand_white_space(self):
+
+        return random.choice('\0\t\n\f\r ')
 
     def _rand_string(self, length):
 
@@ -105,6 +110,7 @@ class TestPDFLexer:
         hex_str = ''.join(map(self._to_hex_notation, test_data))
         with closing(NamedTemporaryFile()) as f:
             f.write('<%s>' % hex_str)
+            f.write(self._rand_white_space() + self._rand_string(8))
             f.flush()
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
@@ -117,6 +123,7 @@ class TestPDFLexer:
         # empty case
         with closing(NamedTemporaryFile()) as f:
             f.write('<>')
+            f.write(self._rand_white_space() + self._rand_string(8))
             f.flush()
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
@@ -139,6 +146,7 @@ class TestPDFLexer:
 
         with closing(NamedTemporaryFile()) as f:
             f.write('<%s>' % hex_str)
+            f.write(self._rand_white_space() + self._rand_string(8))
             f.flush()
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
@@ -168,9 +176,12 @@ class TestPDFLexer:
         for name, expect_val in test_data:
             with closing(NamedTemporaryFile()) as f:
                 f.write(name)
+                f.write(self._rand_white_space() + self._rand_string(8))
                 f.flush()
 
                 with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                     p = PDFLexer(stream)
                     name_object = p._get_name(0)
                     assert name_object.data == expect_val
+
+
