@@ -12,7 +12,7 @@ import re
 class PDFLexerError(Exception): pass
 
 
-class PDFBaseObject:
+class PDFBaseObject(object):
     """A base class for PDF 8 basic types of objects.
 
     Attribute:
@@ -31,9 +31,40 @@ class PDFBaseObject:
 
 
 class PDFNumericObject(PDFBaseObject): pass
+
+
 class PDFStringObject(PDFBaseObject): pass
+
+
 class PDFNameObject(PDFBaseObject): pass
-class PDFDictObject(PDFBaseObject): pass
+
+
+class PDFDictObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFDictObject, self).__init__()
+        self.data = {}
+        self.entries = []
+
+    def add_entry(self, key, value):
+
+        self.entries.append((key, value))
+        self.data[key.data] = value.data
+
+
+class PDFArrayObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFArrayObject, self).__init__()
+        self.entries = []
+        self.data = []
+
+    def add_entry(self, value):
+
+        self.entries.append(value)
+        self.data.append(value.data)
+
+
 class PDFIndirectRefObject(PDFBaseObject):
 
     @property
@@ -43,6 +74,12 @@ class PDFIndirectRefObject(PDFBaseObject):
     @property
     def generation_num(self):
         return self.data[1]
+
+
+class PDFBooleanObject(PDFBaseObject): pass
+
+
+class PDFNullObject(PDFBaseObject): pass
 
 
 class PDFLexer:
@@ -97,41 +134,56 @@ class PDFLexer:
         elif ch == '/':
             return self._get_name(stream_pos)
         elif ch == '[':
-            return None
+            return self._get_array(stream_pos)
         elif ch == '<':
             next_char, next_char_pos = self._get_single_byte(stream_pos + 1)
             if next_char == '<' and next_char_pos == stream_pos + 1:
-                return None
-            else:
-                return self._get_hexadecimal_string(stream_pos)
+                return self._get_dictionary(stream_pos)
 
-        elif ch == '{':
-            return None
+            return self._get_hexadecimal_string(stream_pos)
+        elif ch == 't':
+            b = self.stream[stream_pos:min(self.max_pos, stream_pos + 4)]
+            if b == 'true':
+                ret = PDFBooleanObject()
+                ret.start_pos, ret.end_pos = stream_pos, stream_pos + 4
+                ret.data = True
+                return ret
+        elif ch == 'f':
+            b = self.stream[stream_pos:min(self.max_pos, stream_pos + 5)]
+            if b == 'false':
+                ret = PDFBooleanObject()
+                ret.start_pos, ret.end_pos = stream_pos, stream_pos + 5
+                ret.data = False
+                return ret
+        elif ch == 'n':
+            b = self.stream[stream_pos:min(self.max_pos, stream_pos + 4)]
+            if b == 'null':
+                ret = PDFNullObject()
+                ret.start_pos, ret.end_pos = stream_pos, stream_pos + 4
+                ret.data = None
+                return ret
 
-    def _get_single_byte(self, pos=None):
+        return None
+
+    def _get_single_byte(self, stream_pos):
         """Get a meaningful character. Skip comment and white space."""
 
-        if pos is not None:
-            self.stream.seek(pos, os.SEEK_SET)
+        ch, pos = None, stream_pos
 
-        stream_pos = pos
-        ch = None
-
-        while stream_pos >= self.max_pos:
-
-            ch = self.stream[stream_pos]
+        while pos < self.max_pos:
+            ch = self.stream[pos]
 
             if ch == '%':
-                stream_pos = self._skip_comment(stream_pos)
+                pos = self._skip_comment(pos)
                 continue
 
             if self._is_white_space(ch):
-                stream_pos += 1
+                pos += 1
                 continue
 
             break
 
-        return (ch, stream_pos)
+        return (ch, pos)
 
     def _is_white_space(self, ch):
         """Test if it is a white-space character."""
@@ -226,7 +278,6 @@ class PDFLexer:
             ret.end_pos += 1
 
         if self.stream[ret.end_pos] != ')':
-            print self.stream[stream_pos:ret.end_pos]
             logger.error('Unterminated literal string')
             raise PDFLexerError('Unterminated literal string')
 
@@ -352,7 +403,52 @@ class PDFLexer:
         assert(self.stream[stream_pos] == '<')
         assert(self.stream[stream_pos + 1] == '<')
 
+        ret = PDFDictObject()
+        ret.start_pos = stream_pos
+        ret.end_pos = stream_pos + 2
+
+        while True:
+            # parse dictionary key
+            ch, ch_pos = self._get_single_byte(ret.end_pos)
+
+            if ch == '>':
+                if self.stream[ch_pos + 1] != '>':
+                    raise PDFLexerError('unbalanced dictionary enclose')
+                ret.end_pos = ch_pos + 2
+                break
+            elif ch == '/':
+                key = self._get_name(ch_pos)
+                ret.end_pos = key.end_pos + 1
+            else:
+                raise PDFLexerError('parse dictionary error')
+
+            # parse dictionary value
+            value = self.get_obj(ret.end_pos)
+            ret.add_entry(key, value)
+            ret.end_pos = value.end_pos
+
+        return ret
+
     def _get_array(self, stream_pos):
         """Try to get an array object at stream_pos."""
 
         assert(self.stream[stream_pos] == '[')
+
+        ret = PDFArrayObject()
+        ret.start_pos = stream_pos
+        ret.end_pos = stream_pos + 1
+
+        while True:
+            value = self.get_obj(ret.end_pos)
+            if value is None:
+                ch, ch_pos = self._get_single_byte(ret.end_pos)
+                if ch == ']':
+                    ret.end_pos = ch_pos + 1
+                    break
+
+                raise PDFLexerError('parse array error')
+
+            ret.add_entry(value)
+            ret.end_pos = value.end_pos + 1
+
+        return ret

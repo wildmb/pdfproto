@@ -1,5 +1,6 @@
 # standard library imports
 from contextlib import closing
+import json
 import mmap
 import random
 from tempfile import NamedTemporaryFile
@@ -183,5 +184,83 @@ class TestPDFLexer:
                     p = PDFLexer(stream)
                     name_object = p._get_name(0)
                     assert name_object.data == expect_val
+                    assert name_object.start_pos == 0
+                    assert name_object.end_pos == len(name)
 
+    def test_get_indirect_reference(self):
 
+        with closing(NamedTemporaryFile()) as f:
+            obj_num = random.randint(1, 2**31 - 1)
+            gen_num = random.randint(0, 65535)
+            write_val = '%s %s R' % (obj_num, gen_num)
+            f.write(write_val)
+            f.write(self._rand_white_space() + self._rand_string(8))
+            f.flush()
+
+            with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                p = PDFLexer(stream)
+                indirect_ref = p._get_indirect_reference(0)
+                assert indirect_ref.object_num == obj_num
+                assert indirect_ref.generation_num == gen_num
+                assert indirect_ref.start_pos == 0
+                assert indirect_ref.end_pos == len(write_val)
+
+    def _test_by_json_dump(self, pdf_json_str, real_json, isdict=True):
+
+        with closing(NamedTemporaryFile()) as f:
+            f.write(pdf_json_str)
+            f.write(self._rand_white_space() + self._rand_string(8))
+            f.flush()
+
+            with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                p = PDFLexer(stream)
+                d = p._get_dictionary(0) if isdict else p._get_array(0)
+                assert json.dumps(d.data, sort_keys=True) == \
+                       json.dumps(real_json, sort_keys=True)
+
+    def test_get_dictionary1(self):
+
+        self._test_by_json_dump("<<>>", {})
+        self._test_by_json_dump("<< >>", {})
+
+    def test_get_dictionary2(self):
+
+        test_data = """<<
+                            /Type /Example
+                            /Subtype /DictionaryExample
+                            /Version 0.01
+                            /IntegerItem 12
+                            /StringItem ( a string )
+                            /Subdictionary <</Item1 0.4
+                                             /Item2 true
+                                             /LastItem ( not ! )
+                                             /VeryLastItem ( OK )
+                                           >>
+                            /IndirectRef 1 0 R
+                            /False false
+                            /NotExist null
+                       >>"""
+        test_data_dict = {
+                'Type': 'Example', 'Subtype': 'DictionaryExample',
+                'Version': 0.01, 'IntegerItem': 12,
+                'StringItem': ' a string ',
+                'Subdictionary': {
+                    'Item1': 0.4, 'Item2': True,
+                    'LastItem': ' not ! ', 'VeryLastItem': ' OK '
+                },
+                'IndirectRef': [1, 0],
+                'False': False,
+                'NotExist': None,
+        }
+
+        self._test_by_json_dump(test_data, test_data_dict)
+
+    def test_get_array1(self):
+
+        self._test_by_json_dump("[]", [], False)
+        self._test_by_json_dump("[ ]", [], False)
+
+    def test_get_array2(self):
+
+        self._test_by_json_dump("[ 549 3.14 false (Ralph) /SomeName ]",
+                                [549, 3.14, False, 'Ralph', 'SomeName'], False)
