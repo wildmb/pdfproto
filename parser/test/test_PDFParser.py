@@ -23,7 +23,7 @@ class TestPDFParser:
             p = PDFParser()
             p.open(f.name)
 
-            assert p.mmfile[:] == content
+            assert p.stream[:] == content
 
     def test_get_header(self):
 

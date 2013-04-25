@@ -20,22 +20,22 @@ class PDFParser:
     PDFParser parses the binary content of pdf document.
 
     Attribute:
-        mmfile: A memory mapped file, ie. the document.
+        stream: A memory mapped file, ie. the document.
 
     """
 
     def __init__(self):
 
         self._file_obj = None
-        self.mmfile = None
+        self.stream = None
 
     def __del__(self):
 
         if self._file_obj is not None:
             self._file_obj.close()
 
-        if self.mmfile is not None:
-            self.mmfile.close()
+        if self.stream is not None:
+            self.stream.close()
 
     def open(self, name):
         """Open the specified pdf file.
@@ -46,7 +46,8 @@ class PDFParser:
         """
 
         self._file_obj = open(name)
-        self.mmfile = mmap.mmap(self._file_obj.fileno(), 0, prot=mmap.PROT_READ)
+        self.stream = mmap.mmap(self._file_obj.fileno(), 0,
+                                prot=mmap.PROT_READ)
 
     def get_header(self):
         """Get the header of the pdf file.
@@ -56,10 +57,10 @@ class PDFParser:
 
         """
 
-        if self.mmfile.tell() != 0:
-            self.mmfile.seek(0, os.SEEK_SET)
+        if self.stream.tell() != 0:
+            self.stream.seek(0, os.SEEK_SET)
 
-        header = self.mmfile.readline().rstrip()
+        header = self.stream.readline().rstrip()
 
         def is_valid_header(header):
             """Only %PDF-1.[0-7] is accepted."""
@@ -78,27 +79,27 @@ class PDFParser:
         """Yields lines in reverse order."""
 
         # go to the tail position
-        self.mmfile.seek(0, os.SEEK_END)
-        max_pos = self.mmfile.tell()
+        self.stream.seek(0, os.SEEK_END)
+        max_pos = self.stream.tell()
         end_pos = max_pos + 1
 
         while end_pos > 1:
             # find EOL
-            carrage_ix = self.mmfile.rfind('\r', 0, end_pos)
-            linefeed_ix = self.mmfile.rfind('\n', 0, end_pos)
+            carrage_ix = self.stream.rfind('\r', 0, end_pos)
+            linefeed_ix = self.stream.rfind('\n', 0, end_pos)
             ix = max(carrage_ix, linefeed_ix)
 
             if ix == -1:
-                yield self.mmfile[0:end_pos]
+                yield self.stream[0:end_pos]
                 break
 
-            yield self.mmfile[min(ix + 1, max_pos):end_pos]
+            yield self.stream[min(ix + 1, max_pos):end_pos]
 
-            curr_byte = self.mmfile[ix]
+            curr_byte = self.stream[ix]
             if curr_byte == '\r':
                 end_pos = ix
             else:
-                if self.mmfile[max(0, ix - 1)] == '\r':
+                if self.stream[max(0, ix - 1)] == '\r':
                     end_pos = ix - 1
                 else:
                     end_pos = ix
@@ -106,10 +107,10 @@ class PDFParser:
     def _next_lines(self, start_pos=0):
         """Yields lines from start_pos"""
 
-        self.mmfile.seek(start_pos, os.SEEK_SET)
+        self.stream.seek(start_pos, os.SEEK_SET)
 
         while True:
-            data = self.mmfile.readline()
+            data = self.stream.readline()
             if data == '':
                 break
 
@@ -126,11 +127,7 @@ class PDFParser:
         """Strips comments."""
 
         ix = data.find('%')
-        if ix == -1:
-            return data
-
-        return data[:ix]
-
+        return data if ix == -1 else data[:ix]
 
     def get_xref_pos(self):
         """Get the position of the first cross reference table.

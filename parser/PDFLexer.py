@@ -82,6 +82,9 @@ class PDFBooleanObject(PDFBaseObject): pass
 class PDFNullObject(PDFBaseObject): pass
 
 
+class PDFKeywordObject(PDFBaseObject): pass
+
+
 class PDFLexer:
     """
 
