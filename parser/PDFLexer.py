@@ -117,30 +117,44 @@ class PDFLexer:
         self.stream = stream
         self.max_pos = self.stream.size()
 
-    def get_obj(self, pos=None):
+    def get_obj(self, pos):
+        """Try to get a PDF object from the specified position.
 
-        ch, stream_pos = self._get_single_byte(pos)
+        Start from the specified position at the file, read until a
+        recognizable token is met. Any comment and whitespace will be
+        ignored.
+
+        Args:
+            pos: An integer indicating where lexer starts to parse.
+
+        Returns:
+            If lexer cannot parse, None is returned. Otherwise, the
+            lexer will return a PDF object.
+
+        """
+
+        ch, stream_pos = self.get_next_token(pos)
 
         if ch in self.NUMERIC_CHARACTERS:
             if ch.isdigit():
                 try:
-                    return self._get_indirect_reference(stream_pos)
+                    return self.get_indirect_reference(stream_pos)
                 except PDFLexerError:
                     pass
 
-            return self._get_number(stream_pos)
+            return self.get_number(stream_pos)
         elif ch == '(':
-            return self._get_literal_string(stream_pos)
+            return self.get_literal_string(stream_pos)
         elif ch == '/':
-            return self._get_name(stream_pos)
+            return self.get_name(stream_pos)
         elif ch == '[':
-            return self._get_array(stream_pos)
+            return self.get_array(stream_pos)
         elif ch == '<':
-            next_char, next_char_pos = self._get_single_byte(stream_pos + 1)
+            next_char, next_char_pos = self.get_next_token(stream_pos + 1)
             if next_char == '<' and next_char_pos == stream_pos + 1:
-                return self._get_dictionary(stream_pos)
+                return self.get_dictionary(stream_pos)
 
-            return self._get_hexadecimal_string(stream_pos)
+            return self.get_hexadecimal_string(stream_pos)
         elif ch == 't':
             b = self.stream[stream_pos:min(self.max_pos, stream_pos + 4)]
             if b == 'true':
@@ -165,8 +179,20 @@ class PDFLexer:
 
         return None
 
-    def _get_single_byte(self, stream_pos):
-        """Get a meaningful character. Skip comment and white space."""
+    def get_next_token(self, stream_pos):
+        """Get a recognizable character.
+
+        Read from the specified position until a non-white-space
+        character is met. Skip comment and white space.
+
+        Args:
+            stream_pos: An integer indicating the starting position.
+
+        Returns:
+            A (token, position) tuple. If reach end of file, token will
+            be None.
+
+        """
 
         ch, pos = None, stream_pos
 
@@ -205,8 +231,22 @@ class PDFLexer:
 
         return pos
 
-    def _get_number(self, stream_pos):
-        """Try to get a int or float number at stream_pos."""
+    def get_number(self, stream_pos):
+        """Get an int or float number at stream_pos.
+
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFNumericObject.
+
+        """
+
+        if self.stream[stream_pos] not in self.NUMERIC_CHARACTERS:
+            logger.error('Should start from a digit character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from a digit character')
 
         ret = PDFNumericObject()
         ret.start_pos = ret.end_pos = stream_pos
@@ -221,14 +261,18 @@ class PDFLexer:
 
         try:
             ret.data = float(data) if '.' in data else int(data)
-        except (ValueError,), e:
+        except ValueError, e:
             logger.error('Invalid numeric object: %s', data)
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError(unicode(e))
 
         return ret
 
     def _octal_replacer(self, match_obj):
-        """It is used in re.sub and will replace octal code to character."""
+        """
+        It is used in re.sub and will replace octal code to character.
+
+        """
 
         return chr(int(match_obj.group(0)[1:], 8))
 
@@ -241,14 +285,25 @@ class PDFLexer:
 
         return chr(int(match_obj.group(0)[1:], 16))
 
-    def _get_literal_string(self, stream_pos):
-        """Try to get a string at stream_pos."""
+    def get_literal_string(self, stream_pos):
+        """Get a literal string at stream_pos.
 
-        assert(self.stream[stream_pos] == '(')
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFStringObject.
+
+        """
+
+        if self.stream[stream_pos] != '(':
+            logger.error('Should start from "(" character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from "(" character')
 
         ret = PDFStringObject()
-        ret.start_pos = stream_pos
-        ret.end_pos = stream_pos + 1
+        ret.start_pos, ret.end_pos = stream_pos, stream_pos + 1
 
         num_parentheses = 1
         string_data = []
@@ -279,6 +334,7 @@ class PDFLexer:
 
         if self.stream[ret.end_pos] != ')':
             logger.error('Unterminated literal string')
+            logger.debug('result: %s', string_data)
             raise PDFLexerError('Unterminated literal string')
 
         ret.end_pos += 1
@@ -306,24 +362,34 @@ class PDFLexer:
 
         return ret
 
-    def _get_hexadecimal_string(self, stream_pos):
-        """Try to get a string at stream_pos."""
+    def get_hexadecimal_string(self, stream_pos):
+        """Get a hexadecimal string at stream_pos.
 
-        assert(self.stream[stream_pos] == '<')
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFStringObject.
+
+        """
+
+        if self.stream[stream_pos] != '<':
+            logger.error('Should start from "<" character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from "<" character')
 
         ret = PDFStringObject()
-        ret.start_pos = ret.end_pos = stream_pos
+        ret.start_pos, ret.end_pos = stream_pos, stream_pos + 1
         ret.data = []
 
         # retrieve a complete hexadecimal string
-        while ret.end_pos < self.max_pos:
-            if self.stream[ret.end_pos] == '>':
-                break
-
+        while ret.end_pos < self.max_pos and self.stream[ret.end_pos] != '>':
             ret.end_pos += 1
 
         if self.stream[ret.end_pos] != '>':
             logger.error('Unterminated hexadecimal string')
+            logger.debug('result: %s', self.stream[stream_pos:ret.end_pos + 1])
             raise PDFLexerError('Unterminated hexadecimal string')
 
         hex_str = self.stream[(ret.start_pos + 1):ret.end_pos]
@@ -345,14 +411,25 @@ class PDFLexer:
 
         return ret
 
-    def _get_name(self, stream_pos):
-        """Try to get a name object at stram_pos."""
+    def get_name(self, stream_pos):
+        """Get a name at stream_pos.
 
-        assert(self.stream[stream_pos] == '/')
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFNameObject.
+
+        """
+
+        if self.stream[stream_pos] != '/':
+            logger.error('Should start from "/" character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from "/" character')
 
         ret = PDFNameObject()
-        ret.start_pos = stream_pos
-        ret.end_pos = stream_pos + 1
+        ret.start_pos, ret.end_pos = stream_pos, stream_pos + 1
 
         # retrieve a complete name
         while ret.end_pos < self.max_pos:
@@ -363,25 +440,39 @@ class PDFLexer:
             ret.end_pos += 1
 
         name = self.stream[(ret.start_pos + 1):ret.end_pos]
-        name = self.RE_NUMBER_SIGN_ESCAPE.sub(self._number_sign_replacer, name)
-        ret.data = name
+
+        # 7.3.5
+        ret.data = self.RE_NUMBER_SIGN_ESCAPE.sub(self._number_sign_replacer,
+                                                  name)
 
         return ret
 
-    def _get_indirect_reference(self, stream_pos):
-        """Try to get an indirect reference at stream_pos."""
+    def get_indirect_reference(self, stream_pos):
+        """Get an indirect reference at stream_pos.
 
-        assert(self.stream[stream_pos].isdigit())
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFIndirectRefObject.
+
+        """
+
+        if not self.stream[stream_pos].isdigit():
+            logger.error('Should start from a digit character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from a digit character')
 
         try:
-            object_num = self._get_number(stream_pos)
+            object_num = self.get_number(stream_pos)
             if not isinstance(object_num.data, int):
                 raise PDFLexerError()
         except PDFLexerError, e:
             raise PDFLexerError('Invalid indirect reference(object number)')
 
         try:
-            generation_num = self._get_number(object_num.end_pos + 1)
+            generation_num = self.get_number(object_num.end_pos + 1)
             if not isinstance(generation_num.data, int):
                 raise PDFLexerError()
         except PDFLexerError, e:
@@ -397,11 +488,22 @@ class PDFLexer:
 
         return ret
 
-    def _get_dictionary(self, stream_pos):
-        """Try to get a dictionary object at stream_pos."""
+    def get_dictionary(self, stream_pos):
+        """Get a dictionary object at stream_pos.
 
-        assert(self.stream[stream_pos] == '<')
-        assert(self.stream[stream_pos + 1] == '<')
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFDictObject.
+
+        """
+
+        if self.stream[stream_pos:stream_pos + 2] != '<<':
+            logger.error('Should start from "<<" character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from "<<" character')
 
         ret = PDFDictObject()
         ret.start_pos = stream_pos
@@ -409,17 +511,21 @@ class PDFLexer:
 
         while True:
             # parse dictionary key
-            ch, ch_pos = self._get_single_byte(ret.end_pos)
+            ch, ch_pos = self.get_next_token(ret.end_pos)
 
             if ch == '>':
                 if self.stream[ch_pos + 1] != '>':
+                    logger.debug('...%s...',
+                                 self.stream[stream_pos:(ch_pos + 1)])
                     raise PDFLexerError('unbalanced dictionary enclose')
                 ret.end_pos = ch_pos + 2
                 break
             elif ch == '/':
-                key = self._get_name(ch_pos)
+                key = self.get_name(ch_pos)
                 ret.end_pos = key.end_pos + 1
             else:
+                logger.debug('...%s...',
+                             self.stream[stream_pos:(ch_pos + 1)])
                 raise PDFLexerError('parse dictionary error')
 
             # parse dictionary value
@@ -429,23 +535,36 @@ class PDFLexer:
 
         return ret
 
-    def _get_array(self, stream_pos):
-        """Try to get an array object at stream_pos."""
+    def get_array(self, stream_pos):
+        """Get an array object at stream_pos.
 
-        assert(self.stream[stream_pos] == '[')
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFArrayObject.
+
+        """
+
+        if self.stream[stream_pos] != '[':
+            logger.error('Should start from "[" character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from "[" character')
 
         ret = PDFArrayObject()
-        ret.start_pos = stream_pos
-        ret.end_pos = stream_pos + 1
+        ret.start_pos, ret.end_pos = stream_pos, stream_pos + 1
 
         while True:
             value = self.get_obj(ret.end_pos)
             if value is None:
-                ch, ch_pos = self._get_single_byte(ret.end_pos)
+                ch, ch_pos = self.get_next_token(ret.end_pos)
                 if ch == ']':
                     ret.end_pos = ch_pos + 1
                     break
 
+                logger.debug('...%s...',
+                             self.stream[stream_pos:ret.end_pos + 1])
                 raise PDFLexerError('parse array error')
 
             ret.add_entry(value)

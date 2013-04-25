@@ -14,7 +14,7 @@ from ..PDFLexer import PDFLexer, PDFLexerError
 
 class TestPDFLexer:
 
-    def test_get_number(self):
+    def testget_number(self):
 
         test_data = {
             '123': 123, '43445': 43445, '+17': 17, '-98': -98,
@@ -34,7 +34,7 @@ class TestPDFLexer:
 
                 with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                     p = PDFLexer(stream)
-                    numeric_object = p._get_number(len(leading))
+                    numeric_object = p.get_number(len(leading))
                     assert numeric_object.data == test_data[key]
                     assert numeric_object.start_pos == len(leading)
                     assert numeric_object.end_pos == len(leading) + len(key)
@@ -47,9 +47,9 @@ class TestPDFLexer:
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                 p = PDFLexer(stream)
                 with pytest.raises(PDFLexerError):
-                    numeric_object = p._get_number(0)
+                    numeric_object = p.get_number(0)
 
-    def test_get_literal_string(self):
+    def testget_literal_string(self):
 
         test_data = (
             ('This is a string', 'This is a string'),
@@ -83,7 +83,7 @@ class TestPDFLexer:
 
                 with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                     p = PDFLexer(stream)
-                    string_object = p._get_literal_string(0)
+                    string_object = p.get_literal_string(0)
                     assert string_object.data == expect_val
                     assert string_object.start_pos == 0
                     assert string_object.end_pos == len(content)
@@ -104,7 +104,7 @@ class TestPDFLexer:
 
         return ret
 
-    def test_get_hexadecimal_string(self):
+    def testget_hexadecimal_string(self):
 
         # normal case
         test_data = self._rand_string(random.randint(0, 255))
@@ -116,7 +116,7 @@ class TestPDFLexer:
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                 p = PDFLexer(stream)
-                string_object = p._get_hexadecimal_string(0)
+                string_object = p.get_hexadecimal_string(0)
                 assert string_object.data == test_data
                 assert string_object.start_pos == 0
                 assert string_object.end_pos == len(test_data) * 2 + 2
@@ -129,7 +129,7 @@ class TestPDFLexer:
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                 p = PDFLexer(stream)
-                string_object = p._get_hexadecimal_string(0)
+                string_object = p.get_hexadecimal_string(0)
                 assert string_object.data == ''
                 assert string_object.start_pos == 0
                 assert string_object.end_pos == 2
@@ -152,12 +152,12 @@ class TestPDFLexer:
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                 p = PDFLexer(stream)
-                string_object = p._get_hexadecimal_string(0)
+                string_object = p.get_hexadecimal_string(0)
                 assert string_object.data == test_data
                 assert string_object.start_pos == 0
                 assert string_object.end_pos == len(hex_str) + 2
 
-    def test_get_name(self):
+    def testget_name(self):
 
         test_data = (
             ('/Name1', 'Name1'),
@@ -182,12 +182,12 @@ class TestPDFLexer:
 
                 with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                     p = PDFLexer(stream)
-                    name_object = p._get_name(0)
+                    name_object = p.get_name(0)
                     assert name_object.data == expect_val
                     assert name_object.start_pos == 0
                     assert name_object.end_pos == len(name)
 
-    def test_get_indirect_reference(self):
+    def testget_indirect_reference(self):
 
         with closing(NamedTemporaryFile()) as f:
             obj_num = random.randint(1, 2**31 - 1)
@@ -199,7 +199,7 @@ class TestPDFLexer:
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                 p = PDFLexer(stream)
-                indirect_ref = p._get_indirect_reference(0)
+                indirect_ref = p.get_indirect_reference(0)
                 assert indirect_ref.object_num == obj_num
                 assert indirect_ref.generation_num == gen_num
                 assert indirect_ref.start_pos == 0
@@ -214,16 +214,16 @@ class TestPDFLexer:
 
             with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
                 p = PDFLexer(stream)
-                d = p._get_dictionary(0) if isdict else p._get_array(0)
+                d = p.get_dictionary(0) if isdict else p.get_array(0)
                 assert json.dumps(d.data, sort_keys=True) == \
                        json.dumps(real_json, sort_keys=True)
 
-    def test_get_dictionary1(self):
+    def testget_dictionary1(self):
 
         self._test_by_json_dump("<<>>", {})
         self._test_by_json_dump("<< >>", {})
 
-    def test_get_dictionary2(self):
+    def testget_dictionary2(self):
 
         test_data = """<<
                             /Type /Example
@@ -255,12 +255,12 @@ class TestPDFLexer:
 
         self._test_by_json_dump(test_data, test_data_dict)
 
-    def test_get_array1(self):
+    def testget_array1(self):
 
         self._test_by_json_dump("[]", [], False)
         self._test_by_json_dump("[ ]", [], False)
 
-    def test_get_array2(self):
+    def testget_array2(self):
 
         self._test_by_json_dump("[ 549 3.14 false (Ralph) /SomeName ]",
                                 [549, 3.14, False, 'Ralph', 'SomeName'], False)
