@@ -170,12 +170,12 @@ class PDFLexer:
         if ch in self.NUMERIC_CHARACTERS:
             if ch.isdigit():
                 try:
-                #    self.get_indirect_object(stream_pos)
-                #except PDFLexerError:
-                #    try:
-                    return self.get_indirect_reference(stream_pos)
+                    self.get_indirect_object(stream_pos)
                 except PDFLexerError:
-                    pass
+                    try:
+                        return self.get_indirect_reference(stream_pos)
+                    except PDFLexerError:
+                        pass
 
             return self.get_number(stream_pos)
         elif ch == '(':
@@ -621,13 +621,18 @@ class PDFLexer:
             object_num = self.get_number(stream_pos)
             if not isinstance(object_num.data, int):
                 raise PDFLexerError()
+
+            ret.object_num = object_num.data
         except PDFLexerError, e:
             raise PDFLexerError('Invalid stream object(object number)')
+
 
         try:
             generation_num = self.get_number(object_num.end_pos + 1)
             if not isinstance(generation_num.data, int):
                 raise PDFLexerError()
+
+            ret.object_num = object_num.data
         except PDFLexerError, e:
             raise PDFLexerError('Invalid stream object(generation number')
 

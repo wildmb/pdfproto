@@ -313,5 +313,5 @@ class TestPDFLexer:
                     assert io.genration_num == gen_num
                     assert io.start_pos == 0
                     assert io.end_pos == len(test_str)
-                    assert json.dumps(io.data, sort_keys=True) == \
+                    assert json.dumps(io.data.data, sort_keys=True) == \
                            json.dumps(data, sort_keys=True)
