@@ -603,7 +603,7 @@ class PDFLexer:
                 raise PDFLexerError('parse array error')
 
             ret.add_entry(value)
-            ret.end_pos = value.end_pos + 1
+            ret.end_pos = value.end_pos
 
         return ret
 
