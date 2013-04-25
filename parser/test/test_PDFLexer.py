@@ -14,7 +14,7 @@ from ..PDFLexer import PDFLexer, PDFLexerError
 
 class TestPDFLexer:
 
-    def testget_number(self):
+    def test_get_number(self):
 
         test_data = {
             '123': 123, '43445': 43445, '+17': 17, '-98': -98,
@@ -49,7 +49,7 @@ class TestPDFLexer:
                 with pytest.raises(PDFLexerError):
                     numeric_object = p.get_number(0)
 
-    def testget_literal_string(self):
+    def test_get_literal_string(self):
 
         test_data = (
             ('This is a string', 'This is a string'),
@@ -104,7 +104,7 @@ class TestPDFLexer:
 
         return ret
 
-    def testget_hexadecimal_string(self):
+    def test_get_hexadecimal_string(self):
 
         # normal case
         test_data = self._rand_string(random.randint(0, 255))
@@ -157,7 +157,7 @@ class TestPDFLexer:
                 assert string_object.start_pos == 0
                 assert string_object.end_pos == len(hex_str) + 2
 
-    def testget_name(self):
+    def test_get_name(self):
 
         test_data = (
             ('/Name1', 'Name1'),
@@ -187,7 +187,7 @@ class TestPDFLexer:
                     assert name_object.start_pos == 0
                     assert name_object.end_pos == len(name)
 
-    def testget_indirect_reference(self):
+    def test_get_indirect_reference(self):
 
         with closing(NamedTemporaryFile()) as f:
             obj_num = random.randint(1, 2**31 - 1)
@@ -227,10 +227,10 @@ class TestPDFLexer:
 
         test_data = """<<
                             /Type /Example
-                            /Subtype /DictionaryExample
+                            /Subtype/DictionaryExample
                             /Version 0.01
                             /IntegerItem 12
-                            /StringItem ( a string )
+                            /StringItem( a string )
                             /Subdictionary <</Item1 0.4
                                              /Item2 true
                                              /LastItem ( not ! )
@@ -255,12 +255,63 @@ class TestPDFLexer:
 
         self._test_by_json_dump(test_data, test_data_dict)
 
-    def testget_array1(self):
+    def test_get_array1(self):
 
         self._test_by_json_dump("[]", [], False)
         self._test_by_json_dump("[ ]", [], False)
 
-    def testget_array2(self):
+    def test_get_array2(self):
 
         self._test_by_json_dump("[ 549 3.14 false (Ralph) /SomeName ]",
                                 [549, 3.14, False, 'Ralph', 'SomeName'], False)
+        self._test_by_json_dump("[1 2 3 4 5 6 R]", [1, 2, 3, 4, [5, 6]], False)
+
+    def test_get_array3(self):
+
+        self._test_by_json_dump("[[[[1]]]]", [[[[1]]]], False)
+
+    def test_get_indirect_object(self):
+
+        test_data = (
+                ("""1 0 obj
+                    123
+                    endobj""", 1, 0, 123),
+                ("""2 0 obj
+                    -0.1
+                    endobj""", 2, 0, -0.1),
+                ("""3 0 obj
+                    (billing)
+                    endobj""", 3, 0, 'billing'),
+                ("""4 0 obj
+                    <62696c6c696e67>
+                    endobj""", 4, 0, 'billing'),
+                ("""5 0 obj
+                    /billing
+                    endobj""", 5, 0, 'billing'),
+                ("""6 0 obj
+                    <</a/billing /b 123
+                      /c true /d [ 1 2 3 ]
+                      /e (billing) /f<62696c6c696e67>
+                      /g null /h<<>>>>
+                    endobj""", 6, 0,
+                 {'a': 'billing', 'b': 123, 'c': True, 'd': [1, 2, 3],
+                  'e': 'billing', 'f': 'billing', 'g': None,
+                  'h': {}}),
+                ("""7 0 obj [/a /b 1 2 3 0 R] endobj""", 7, 0, ['a', 'b', 1, 2, [3, 0]]),
+        )
+
+        for test_str, obj_num, gen_num, data in test_data:
+            with closing(NamedTemporaryFile()) as f:
+                f.write(test_str)
+                f.write(self._rand_white_space() + self._rand_string(8))
+                f.flush()
+
+                with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                    p = PDFLexer(stream)
+                    io = p.get_indirect_object(0)
+                    assert io.object_num == obj_num
+                    assert io.genration_num == gen_num
+                    assert io.start_pos == 0
+                    assert io.end_pos == len(test_str)
+                    assert json.dumps(io.data, sort_keys=True) == \
+                           json.dumps(data, sort_keys=True)

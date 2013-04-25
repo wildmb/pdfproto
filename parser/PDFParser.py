@@ -9,6 +9,7 @@ import os
 # third party related import
 
 # local library import
+from PDFLexer import PDFLexer
 
 
 class PDFParserError(Exception): pass
@@ -28,6 +29,7 @@ class PDFParser:
 
         self._file_obj = None
         self.stream = None
+        self.lexer = None
 
     def __del__(self):
 
@@ -48,6 +50,7 @@ class PDFParser:
         self._file_obj = open(name)
         self.stream = mmap.mmap(self._file_obj.fileno(), 0,
                                 prot=mmap.PROT_READ)
+        self.lexer = PDFLexer(self.stream)
 
     def get_header(self):
         """Get the header of the pdf file.
@@ -160,3 +163,6 @@ class PDFParser:
             logger.debug('startxref = %s', ret)
 
         return ret
+
+    def get_xref(self, xref_pos):
+        """Get the cross reference table."""

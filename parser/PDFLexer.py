@@ -30,13 +30,22 @@ class PDFBaseObject(object):
         self.data = None
 
 
-class PDFNumericObject(PDFBaseObject): pass
+class PDFNumericObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFNumericObject, self).__init__()
 
 
-class PDFStringObject(PDFBaseObject): pass
+class PDFStringObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFStringObject, self).__init__()
 
 
-class PDFNameObject(PDFBaseObject): pass
+class PDFNameObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFNameObject, self).__init__()
 
 
 class PDFDictObject(PDFBaseObject):
@@ -67,6 +76,9 @@ class PDFArrayObject(PDFBaseObject):
 
 class PDFIndirectRefObject(PDFBaseObject):
 
+    def __init__(self):
+        super(PDFIndirectRefObject, self).__init__()
+
     @property
     def object_num(self):
         return self.data[0]
@@ -76,13 +88,30 @@ class PDFIndirectRefObject(PDFBaseObject):
         return self.data[1]
 
 
-class PDFBooleanObject(PDFBaseObject): pass
+class PDFBooleanObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFBooleanObject, self).__init__()
 
 
-class PDFNullObject(PDFBaseObject): pass
+class PDFNullObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFNullObject, self).__init__()
 
 
-class PDFKeywordObject(PDFBaseObject): pass
+class PDFIndirectObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFIndirectObject, self).__init__()
+        self.object_num = 0
+        self.genration_num = 0
+
+
+class PDFStreamObject(PDFBaseObject):
+
+    def __init__(self):
+        super(PDFStreamObject, self).__init__()
 
 
 class PDFLexer:
@@ -141,6 +170,9 @@ class PDFLexer:
         if ch in self.NUMERIC_CHARACTERS:
             if ch.isdigit():
                 try:
+                #    self.get_indirect_object(stream_pos)
+                #except PDFLexerError:
+                #    try:
                     return self.get_indirect_reference(stream_pos)
                 except PDFLexerError:
                     pass
@@ -525,7 +557,7 @@ class PDFLexer:
                 break
             elif ch == '/':
                 key = self.get_name(ch_pos)
-                ret.end_pos = key.end_pos + 1
+                ret.end_pos = key.end_pos
             else:
                 logger.debug('...%s...',
                              self.stream[stream_pos:(ch_pos + 1)])
@@ -572,5 +604,47 @@ class PDFLexer:
 
             ret.add_entry(value)
             ret.end_pos = value.end_pos + 1
+
+        return ret
+
+    def get_indirect_object(self, stream_pos):
+
+        if not self.stream[stream_pos].isdigit():
+            logger.error('Should start from a digit character')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from a digit character')
+
+        ret = PDFIndirectObject()
+        ret.start_pos = stream_pos
+
+        try:
+            object_num = self.get_number(stream_pos)
+            if not isinstance(object_num.data, int):
+                raise PDFLexerError()
+        except PDFLexerError, e:
+            raise PDFLexerError('Invalid stream object(object number)')
+
+        try:
+            generation_num = self.get_number(object_num.end_pos + 1)
+            if not isinstance(generation_num.data, int):
+                raise PDFLexerError()
+        except PDFLexerError, e:
+            raise PDFLexerError('Invalid stream object(generation number')
+
+        kw_pos = generation_num.end_pos + 1
+        if self.stream[kw_pos:(kw_pos + 3)] != 'obj':
+            logger.error('Should be keyword "obj"')
+            logger.debug('...%s...', self.stream[kw_pos:(kw_pos + 10)])
+            raise PDFLexerError('Should be keyword "obj"')
+
+        ret.data = self.get_obj(kw_pos + 3)
+
+        ch, ch_pos = self.get_next_token(ret.data.end_pos)
+        if self.stream[ch_pos:(ch_pos + 6)] != 'endobj':
+            logger.error('Should be keyword "endobj"')
+            logger.debug('...%s...', self.stream[ch_pos:(ch_pos + 10)])
+            raise PDFLexerError('Should be keyword "endobj"')
+
+        ret.end_pos = ch_pos + 6
 
         return ret
