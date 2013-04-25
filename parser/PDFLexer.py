@@ -112,6 +112,7 @@ class PDFStreamObject(PDFBaseObject):
 
     def __init__(self):
         super(PDFStreamObject, self).__init__()
+        self.stream_dict = {}
 
 
 class PDFLexer:
@@ -170,7 +171,7 @@ class PDFLexer:
         if ch in self.NUMERIC_CHARACTERS:
             if ch.isdigit():
                 try:
-                    self.get_indirect_object(stream_pos)
+                    return self.get_indirect_object(stream_pos)
                 except PDFLexerError:
                     try:
                         return self.get_indirect_reference(stream_pos)
@@ -187,7 +188,10 @@ class PDFLexer:
         elif ch == '<':
             next_char, next_char_pos = self.get_next_token(stream_pos + 1)
             if next_char == '<' and next_char_pos == stream_pos + 1:
-                return self.get_dictionary(stream_pos)
+                try:
+                    return self.get_stream(stream_pos)
+                except PDFLexerError, e:
+                    return self.get_dictionary(stream_pos)
 
             return self.get_hexadecimal_string(stream_pos)
         elif ch == 't':
@@ -608,6 +612,16 @@ class PDFLexer:
         return ret
 
     def get_indirect_object(self, stream_pos):
+        """Get an indirect object.
+
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFIndirectObject.
+
+        """
 
         if not self.stream[stream_pos].isdigit():
             logger.error('Should start from a digit character')
@@ -625,7 +639,6 @@ class PDFLexer:
             ret.object_num = object_num.data
         except PDFLexerError, e:
             raise PDFLexerError('Invalid stream object(object number)')
-
 
         try:
             generation_num = self.get_number(object_num.end_pos + 1)
@@ -651,5 +664,56 @@ class PDFLexer:
             raise PDFLexerError('Should be keyword "endobj"')
 
         ret.end_pos = ch_pos + 6
+
+        return ret
+
+    def get_stream(self, stream_pos):
+        """Get a stream object.
+
+        Args:
+            stream_pos: An integer specified the starting position at
+                the stream.
+
+        Returns:
+            A PDFStreamObject.
+
+        """
+
+        try:
+            stream_dict = self.get_dictionary(stream_pos)
+        except PDFLexerError, e:
+            logger.error('Should be a dictionary')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should be a dictionary')
+
+        if self.stream[stream_pos:(stream_pos + 6)] != 'stream':
+            logger.error('Should start from "stream"')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should start from "stream"')
+
+        ret = PDFStreamObject()
+        ret.start_pos = stream_pos
+        ret.stream_dict = stream_dict
+
+        eol = self.stream[min(stream_pos + 7, self.max_pos)]
+        if eol == '\r':
+            data_pos = stream_pos + 9
+        elif eol == '\n':
+            data_pos = stream_pos + 8
+        else:
+            logger.error('Should be an EOL')
+            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            raise PDFLexerError('Should be an EOL')
+
+        end_pos = self.stream.find('endstream', data_pos)
+        if end_pos == -1:
+            raise PDFLexerError('unterminated stream')
+
+        ret.end_pos = end_pos + 8
+
+        if self.stream[(end_pos - 2):end_pos] == '\r\n':
+            ret.data = self.stream[data_pos:(end_pos - 2)]
+        else:
+            ret.data = self.stream[data_pos:(end_pos - 1)]
 
         return ret
