@@ -315,3 +315,35 @@ class TestPDFLexer:
                     assert io.end_pos == len(test_str)
                     assert json.dumps(io.data.data, sort_keys=True) == \
                            json.dumps(data, sort_keys=True)
+
+    def test_get_stream(self):
+
+        # empty stream
+        with closing(NamedTemporaryFile()) as f:
+            eol1 = random.choice(('\r\n', '\n'))
+            eol2 = random.choice(('\r\n', '\r', '\n'))
+            f.write('<<>>\nstream' + eol1 + eol2 + 'endstream')
+            f.flush()
+
+            with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                p = PDFLexer(stream)
+                s = p.get_stream(0)
+                assert s.data == ''
+                assert s.start_pos == 0
+                assert s.end_pos == 5 + 5 + len(eol1) + len(eol2) + 8 + 1
+                assert s.stream_dict.data == {}
+
+        with closing(NamedTemporaryFile()) as f:
+            eol1 = random.choice(('\r\n', '\n'))
+            eol2 = random.choice(('\r\n', '\r', '\n'))
+            data = self._rand_string(random.randint(0, 65536))
+            f.write('<<>>\nstream' + eol1 + data + eol2 + 'endstream')
+            f.flush()
+
+            with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                p = PDFLexer(stream)
+                s = p.get_stream(0)
+                assert s.data == data
+                assert s.start_pos == 0
+                assert s.end_pos == 5 + 5 + len(eol1) + len(data) + len(eol2) + 8 + 1
+                assert s.stream_dict.data == {}

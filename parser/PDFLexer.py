@@ -283,7 +283,7 @@ class PDFLexer:
         """
 
         if self.stream[stream_pos] not in self.NUMERIC_CHARACTERS:
-            logger.error('Should start from a digit character')
+            logger.warn('Should start from a digit character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from a digit character')
 
@@ -301,7 +301,7 @@ class PDFLexer:
         try:
             ret.data = float(data) if '.' in data else int(data)
         except ValueError, e:
-            logger.error('Invalid numeric object: %s', data)
+            logger.warn('Invalid numeric object: %s', data)
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError(unicode(e))
 
@@ -337,7 +337,7 @@ class PDFLexer:
         """
 
         if self.stream[stream_pos] != '(':
-            logger.error('Should start from "(" character')
+            logger.warn('Should start from "(" character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from "(" character')
 
@@ -414,7 +414,7 @@ class PDFLexer:
         """
 
         if self.stream[stream_pos] != '<':
-            logger.error('Should start from "<" character')
+            logger.warn('Should start from "<" character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from "<" character')
 
@@ -427,7 +427,7 @@ class PDFLexer:
             ret.end_pos += 1
 
         if self.stream[ret.end_pos] != '>':
-            logger.error('Unterminated hexadecimal string')
+            logger.warn('Unterminated hexadecimal string')
             logger.debug('result: %s', self.stream[stream_pos:ret.end_pos + 1])
             raise PDFLexerError('Unterminated hexadecimal string')
 
@@ -463,7 +463,7 @@ class PDFLexer:
         """
 
         if self.stream[stream_pos] != '/':
-            logger.error('Should start from "/" character')
+            logger.warn('Should start from "/" character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from "/" character')
 
@@ -499,7 +499,7 @@ class PDFLexer:
         """
 
         if not self.stream[stream_pos].isdigit():
-            logger.error('Should start from a digit character')
+            logger.warn('Should start from a digit character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from a digit character')
 
@@ -540,7 +540,7 @@ class PDFLexer:
         """
 
         if self.stream[stream_pos:stream_pos + 2] != '<<':
-            logger.error('Should start from "<<" character')
+            logger.warn('Should start from "<<" character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from "<<" character')
 
@@ -587,7 +587,7 @@ class PDFLexer:
         """
 
         if self.stream[stream_pos] != '[':
-            logger.error('Should start from "[" character')
+            logger.warn('Should start from "[" character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from "[" character')
 
@@ -624,7 +624,7 @@ class PDFLexer:
         """
 
         if not self.stream[stream_pos].isdigit():
-            logger.error('Should start from a digit character')
+            logger.warn('Should start from a digit character')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should start from a digit character')
 
@@ -651,7 +651,7 @@ class PDFLexer:
 
         kw_pos = generation_num.end_pos + 1
         if self.stream[kw_pos:(kw_pos + 3)] != 'obj':
-            logger.error('Should be keyword "obj"')
+            logger.warn('Should be keyword "obj"')
             logger.debug('...%s...', self.stream[kw_pos:(kw_pos + 10)])
             raise PDFLexerError('Should be keyword "obj"')
 
@@ -659,7 +659,7 @@ class PDFLexer:
 
         ch, ch_pos = self.get_next_token(ret.data.end_pos)
         if self.stream[ch_pos:(ch_pos + 6)] != 'endobj':
-            logger.error('Should be keyword "endobj"')
+            logger.warn('Should be keyword "endobj"')
             logger.debug('...%s...', self.stream[ch_pos:(ch_pos + 10)])
             raise PDFLexerError('Should be keyword "endobj"')
 
@@ -682,27 +682,29 @@ class PDFLexer:
         try:
             stream_dict = self.get_dictionary(stream_pos)
         except PDFLexerError, e:
-            logger.error('Should be a dictionary')
+            logger.warn('Should be a dictionary')
             logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
             raise PDFLexerError('Should be a dictionary')
 
-        if self.stream[stream_pos:(stream_pos + 6)] != 'stream':
-            logger.error('Should start from "stream"')
-            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+        kw, kw_pos = self.get_next_token(stream_dict.end_pos)
+
+        if self.stream[kw_pos:(kw_pos + 6)] != 'stream':
+            logger.warn('Should start from "stream"')
+            logger.debug('...%s...', self.stream[kw_pos:(kw_pos + 10)])
             raise PDFLexerError('Should start from "stream"')
 
         ret = PDFStreamObject()
         ret.start_pos = stream_pos
         ret.stream_dict = stream_dict
 
-        eol = self.stream[min(stream_pos + 7, self.max_pos)]
+        eol = self.stream[min(kw_pos + 6, self.max_pos)]
         if eol == '\r':
-            data_pos = stream_pos + 9
+            data_pos = kw_pos + 8
         elif eol == '\n':
-            data_pos = stream_pos + 8
+            data_pos = kw_pos + 7
         else:
-            logger.error('Should be an EOL')
-            logger.debug('...%s...', self.stream[stream_pos:(stream_pos + 10)])
+            logger.warn('Should be an EOL')
+            logger.debug('...%s...', self.stream[(kw_pos + 6):(kw_pos + 16)])
             raise PDFLexerError('Should be an EOL')
 
         end_pos = self.stream.find('endstream', data_pos)
