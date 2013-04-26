@@ -6,6 +6,7 @@ import logging as logger
 # third party related import
 
 # local library import
+from ..parser.PDFParser import PDFParser
 
 
 class PDFCrossRefSectionError(Exception): pass
@@ -28,7 +29,7 @@ class PDFCrossRefSection:
         """
 
         # test the 1st line must be keyword "xref"
-        for line in parser.next_lines(xref_pos)):
+        for line in parser.next_lines(xref_pos):
             if line != 'xref':
                 logger.error('Should be keyword xref')
                 raise PDFCrossRefTableError('Should be keyword xref')
