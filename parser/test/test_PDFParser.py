@@ -122,7 +122,7 @@ class TestPDFParser:
             p = PDFParser()
             p.open(f.name)
 
-            output_lines = [line for line in p._next_lines()]
+            output_lines = [line for line in p.next_lines()]
             output_lines = filter(lambda line: len(line) != 0, output_lines)
             assert output_lines == filter(lambda line: len(line) != 0, lines)
 

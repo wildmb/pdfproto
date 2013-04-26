@@ -107,8 +107,16 @@ class PDFParser:
                 else:
                     end_pos = ix
 
-    def _next_lines(self, start_pos=0):
-        """Yields lines from start_pos"""
+    def next_lines(self, start_pos=0):
+        """Yields lines from start_pos
+
+        Args:
+            start_pos: An integer indicating where we start to split lines.
+
+        Returns:
+            A stripped EOL string.
+
+        """
 
         self.stream.seek(start_pos, os.SEEK_SET)
 
@@ -166,3 +174,9 @@ class PDFParser:
 
     def get_xref(self, xref_pos):
         """Get the cross reference table."""
+
+        for line in self.next_lines(xref_pos):
+            if line != 'xref':
+                break
+
+            # 7.5.4
