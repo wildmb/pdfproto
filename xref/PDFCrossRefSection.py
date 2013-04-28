@@ -46,6 +46,7 @@ class PDFCrossRefSection:
             if num_remaining == 0:
                 obj_num, num_remaining = self._get_subsection_header(line)
                 if obj_num is None:
+                    # reach the end of cross-reference table
                     break
 
                 continue
@@ -60,7 +61,6 @@ class PDFCrossRefSection:
 
             obj_num += 1
             num_remaining -= 1
-
 
     def _get_subsection_header(self, entry):
 

@@ -10,6 +10,7 @@ import os
 
 # local library import
 from PDFLexer import PDFLexer
+from ..xref.PDFCrossRefSection import PDFCrossRefSection
 
 
 class PDFParserError(Exception): pass
