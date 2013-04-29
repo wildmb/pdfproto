@@ -193,8 +193,14 @@ class PDFParser:
 
         return ret
 
-    def get_xref(self, xref_pos):
+    def get_xref(self, xref_pos, xrefs=None, trailers=None):
         """Get the cross reference table."""
+
+        if xrefs is None:
+            xrefs = []
+
+        if trailers is None:
+            trailers = []
 
         for line in self.next_lines(xref_pos):
             if line == 'xref':
@@ -202,10 +208,16 @@ class PDFParser:
                 xref.load_section(xref_pos)
                 break
 
-            # 7.5.4
-
             if xref.trailer is None:
                 logger.error('xref.trailer is None')
                 raise PDFParserError('xref.trailer is None')
 
+            xrefs.append(xref)
+
             trailer = xref.trailer
+            trailers.append(trailer)
+
+            if trailer.prev is None:
+                break
+
+            self.get_xref()
