@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # standard library imports
+import binascii
 import re
 
 # third party related imports
@@ -9,13 +10,34 @@ import re
 
 
 class ASCIIHexDecoder:
+    """PDF ASCIIHexDecode Filter."""
 
-    RE_HEX = re.compile(r'([a-f\d]{2})', re.IGNORECASE)
-
-    RE_TRAIL = re.compile(r'^(?:[a-f\d]{2}|\s)*([a-f\d])[\s>]*$', re.IGNORECASE)
+    # Only hexadecimal character and EOD('>') is allowed
+    RE_IGNORE = re.compile(r'[^\da-fA-F>]')
 
     def decode(self, data):
+        """Decode ASCII hexaecimal form data.
 
-        out = map(lambda hx: chr(int(hx, 16)), self.RE_HEX.findall(data))
-        match_obj = self.RE_TRAIL.search(data)
+        Decodes data that has been encoded in ASCII hexadecimal form.
+        All white-space characters shall be ignored.
+
+        Args:
+            data: A sequence of bytes.
+
+        Returns:
+            A sequence of byte.
+
+        """
+
+        # sanitize data
+        clean_data = self.RE_IGNORE.sub('', data)
+        eod_ix = clean_data.rfind('>')
+        if eod_ix != -1:
+            clean_data = clean_data[:eod_ix]
+
+        # ensure even length
+        if len(clean_data) % 2 == 1:
+            clean_data += '0'
+
+        return binascii.unhexlify(clean_data)
 
