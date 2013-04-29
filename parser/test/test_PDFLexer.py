@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 import pytest
 
 # local library imports
-from pdfproto.PDFLexer import PDFLexer, PDFLexerError
+from pdfproto.parser.PDFLexer import PDFLexer, PDFLexerError
 
 
 class TestPDFLexer:
