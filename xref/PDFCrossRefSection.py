@@ -39,9 +39,6 @@ class PDFCrossRefSection:
             parser: An instance of PDFParser
             xref_pos: An integer that cross reference table starts.
 
-        Returns:
-            An instance of PDFTrailer.
-
         """
 
         # test the 1st line must be keyword "xref"
