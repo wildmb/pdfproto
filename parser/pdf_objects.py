@@ -139,18 +139,38 @@ class PDFIndirectRefObject(PDFBaseObject):
 
 
 class PDFBooleanObject(PDFBaseObject):
+    """PDF Boolean Object
+
+    Attributes:
+        data: True / False
+
+    """
 
     def __init__(self):
         super(PDFBooleanObject, self).__init__()
 
 
 class PDFNullObject(PDFBaseObject):
+    """PDF Null Object
+
+    Attributes:
+        data: None
+
+    """
 
     def __init__(self):
         super(PDFNullObject, self).__init__()
 
 
 class PDFIndirectObject(PDFBaseObject):
+    """PDF Indirect Object.
+
+    Attributes:
+        data: An instance of PDFBaseObject.
+        object_num: An integer of the object number
+        generation_num: An integer of the generation number.
+
+    """
 
     def __init__(self):
         super(PDFIndirectObject, self).__init__()
@@ -159,6 +179,13 @@ class PDFIndirectObject(PDFBaseObject):
 
 
 class PDFStreamObject(PDFBaseObject):
+    """PDF Stream Object
+
+    Attributes:
+        data: A sequence of zero ob more bytes.
+        stream_dict: A dict of stream dict
+
+    """
 
     def __init__(self):
         super(PDFStreamObject, self).__init__()
