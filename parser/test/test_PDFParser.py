@@ -7,7 +7,7 @@ from tempfile import NamedTemporaryFile
 import pytest
 
 # local library import
-from ..PDFParser import *
+from pdfproto.parser.PDFParser import *
 
 
 class TestPDFParser:
@@ -104,27 +104,59 @@ class TestPDFParser:
 
         num_lines = random.randint(0, 10000)
         lines = []
+        offset = 0
+
         CR, LF = ord('\r'), ord('\n')
 
         for i in xrange(num_lines):
             num_bytes = self.rand_byte()
             bunch_bytes = map(lambda i: self.rand_byte(), xrange(num_bytes))
             bunch_bytes = filter(lambda b: b != CR and b != LF, bunch_bytes)
-            lines.append(bytearray(bunch_bytes))
+            bunch_bytes = bytearray(bunch_bytes)
+            bunch_bytes += bytearray(random.choice(('\r', '\n', '\r\n')))
+
+            lines.append((bunch_bytes, offset))
+            offset += len(bunch_bytes)
 
         with closing(NamedTemporaryFile()) as f:
-            for ba in lines:
-                eol = random.choice(('\r', '\n', '\r\n'))
-                f.write(ba + eol)
-
+            map(lambda li: f.write(li[0]), lines)
             f.flush()
 
             p = PDFParser()
             p.open(f.name)
 
-            output_lines = [line for line in p.next_lines()]
+            output_lines = [bytearray(line) for line in p.next_lines(skip_comment=False)]
             output_lines = filter(lambda line: len(line) != 0, output_lines)
-            assert output_lines == filter(lambda line: len(line) != 0, lines)
+            expect_lines = []
+            for i in xrange(len(lines)):
+                li = lines[i][0].replace('\r', '').replace('\n', '')
+                if len(li) > 0 and li[-1] == '\r':
+                    li = li[:-1]
+                if len(li) > 0:
+                    expect_lines.append(li)
+
+            for ix, ol in enumerate(output_lines):
+                assert ol == expect_lines[ix]
+
+        with closing(NamedTemporaryFile()) as f:
+            map(lambda li: f.write(li[0]), lines)
+            f.flush()
+
+            p = PDFParser()
+            p.open(f.name)
+
+            output_lines = [line for line in p.next_lines(ensure_pos=True, skip_comment=False)]
+            output_lines = filter(lambda (line, offset): len(line) != 0, output_lines)
+            expect_lines = []
+            for i in xrange(len(lines)):
+                li = lines[i][0].replace('\r', '').replace('\n', '')
+                if len(li) > 0 and li[-1] == '\r':
+                    li = li[:-1]
+                if len(li) > 0:
+                    expect_lines.append((li, lines[i][1]))
+
+            for ix, ol in enumerate(output_lines):
+                assert ol == expect_lines[ix]
 
     def rand_byte(self):
         """Get an integer 0 <= x <= 255"""

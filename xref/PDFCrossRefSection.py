@@ -6,7 +6,6 @@ import logging as logger
 # third party related import
 
 # local library import
-from ..parser.PDFParser import PDFParser
 
 
 class PDFCrossRefSectionError(Exception): pass
@@ -17,6 +16,8 @@ class PDFCrossRefSection:
     def __init__(self):
 
         self.offset_dict = {}
+
+        # TODO: maybe we don't need this
         self.free_dict = {}
 
     def load_section(self, parser, xref_pos):
