@@ -185,3 +185,4 @@ class TestPDFParser:
             p = PDFParser()
             p.open(f.name)
             assert p.get_xref_pos() == pos
+

@@ -197,7 +197,15 @@ class PDFParser:
         """Get the cross reference table."""
 
         for line in self.next_lines(xref_pos):
-            if line != 'xref':
+            if line == 'xref':
+                xref = PDFCrossRefSection()
+                xref.load_section(xref_pos)
                 break
 
             # 7.5.4
+
+            if xref.trailer is None:
+                logger.error('xref.trailer is None')
+                raise PDFParserError('xref.trailer is None')
+
+            trailer = xref.trailer

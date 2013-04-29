@@ -9,7 +9,8 @@ from tempfile import NamedTemporaryFile
 # third party related imports
 
 # local library imports
-from ..PDFCrossRefSection import PDFCrossRefSection, PDFParser
+from pdfproto.parser.PDFParser import PDFParser
+from pdfproto.xref.PDFCrossRefSection import PDFCrossRefSection
 
 
 class TestPDFCrossRefSection:
@@ -25,7 +26,9 @@ xref
 0000000000 00007 f
 0000000331 00000 n
 0000000409 00000 n
-I AM REDUNDANCY"""
+% I AM COMMENT
+trailer
+<<>>"""
 
         offset_dict = {
                 (0, 65535): 3,
@@ -71,7 +74,9 @@ xref
 0000025635 00000 n
 30 1
 0000025777 00000 n
-I AM REDUNDANCY"""
+% I AM REDUNDANCY
+trailer
+<<>>"""
 
         offset_dict = {
                 (0, 65535): 0,
@@ -101,3 +106,46 @@ I AM REDUNDANCY"""
 
                 assert xref.offset_dict == offset_dict
                 assert xref.free_dict == free_dict
+
+    def test_load_trailer(self):
+
+        test_data = """\
+xref
+0 1
+0000000000 65535 f
+3 1
+0000025325 00000 n
+23 2
+0000025518 00002 n
+0000025635 00000 n
+30 1
+0000025777 00000 n
+% I AM REDUNDANCY
+trailer
+<<
+    /Size 22
+    /Root 2 0 R
+    /Info 1 0 R
+    /ID [
+            <746573742031>
+            <746573742032>
+        ]
+>>"""
+
+        with closing(NamedTemporaryFile()) as f:
+            f.write(test_data)
+            f.flush()
+
+            with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                parser = PDFParser()
+                parser.open(f.name)
+
+                xref = PDFCrossRefSection()
+                xref.load_section(parser, 0)
+
+                trailer = xref.trailer
+
+        assert trailer.size == 22
+        assert trailer.root == (2, 0)
+        assert trailer.info == (1, 0)
+        assert trailer.id == ['test 1', 'test 2']

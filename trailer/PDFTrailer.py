@@ -30,6 +30,9 @@ class PDFTrailer:
         id: An array of two byte-strings constituting a file identifier
             for the file. If there is no encrypt, it is None.
 
+        offset: An integer representing the starting file position of
+            the trailer.
+
     """
 
     def __init__(self):
@@ -39,3 +42,31 @@ class PDFTrailer:
         self.encrypt = False
         self.info = None
         self.id = None
+        self.offset = None
+
+    def load_trailer_dict(self, trailer_dict):
+
+        # shall not be an indirect reference
+        if 'Size' in trailer_dict:
+            self.size = trailer_dict['Size']
+
+        # present only if the file has more than 1 cross reference
+        # section
+        if 'Prev' in trailer_dict:
+            self.prev = trailer_dict['Prev']
+
+        # shall be an indirect reference
+        if 'Root' in trailer_dict:
+            self.root = trailer_dict['Root']
+
+        # required if document is encrypted
+        if 'Encrypt' in trailer_dict:
+            self.encrypt = trailer_dict['Encrypt']
+
+        # shall be an indirect reference
+        if 'Info' in trailer_dict:
+            self.info = trailer_dict['Info']
+
+        # required if an Encrypt entry is presented
+        if 'ID' in trailer_dict:
+            self.id = trailer_dict['ID']

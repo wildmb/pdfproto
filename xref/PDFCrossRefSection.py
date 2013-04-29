@@ -6,12 +6,22 @@ import logging as logger
 # third party related import
 
 # local library import
+from pdfproto.parser.PDFLexer import PDFLexerError
+from pdfproto.trailer.PDFTrailer import PDFTrailer
 
 
 class PDFCrossRefSectionError(Exception): pass
 
 
 class PDFCrossRefSection:
+    """
+
+    Attributes:
+        offset_dict: A dict maps (object_num, generation_num) -> int
+        free_dict: A dict maps (object_num, generation_num) -> bool
+        trailer: An instance of PDFTrailer
+
+    """
 
     def __init__(self):
 
@@ -20,6 +30,8 @@ class PDFCrossRefSection:
         # TODO: maybe we don't need this
         self.free_dict = {}
 
+        self.trailer = None
+
     def load_section(self, parser, xref_pos):
         """Load cross reference section
 
@@ -27,28 +39,36 @@ class PDFCrossRefSection:
             parser: An instance of PDFParser
             xref_pos: An integer that cross reference table starts.
 
+        Returns:
+            An instance of PDFTrailer.
+
         """
 
         # test the 1st line must be keyword "xref"
-        for line in parser.next_lines(xref_pos):
+        for (line, pos) in parser.next_lines(xref_pos, ensure_pos=True):
             if line != 'xref':
                 logger.error('Should be keyword xref')
-                raise PDFCrossRefTableError('Should be keyword xref')
+                raise PDFCrossRefSectionError('Should be keyword xref')
 
             break
 
         obj_num, num_remaining = 0, 0
 
-        for line in parser.next_lines(xref_pos + 5):
+        for (line, pos) in parser.next_lines(xref_pos + 5, ensure_pos=True):
             line = line.strip()
             if line == '':
                 continue
 
             if num_remaining == 0:
+                if line == 'trailer':
+                    self._load_trailer(parser, pos)
+                    break
+
                 obj_num, num_remaining = self._get_subsection_header(line)
                 if obj_num is None:
-                    # reach the end of cross-reference table
-                    break
+                    logger.error('...%s...', parser.stream[pos:(pos + 10)])
+                    logger.error('Invalid cross reference subsection')
+                    raise PDFCrossRefSectionError()
 
                 continue
 
@@ -95,3 +115,30 @@ class PDFCrossRefSection:
             raise PDFCrossRefSectionError('Should be nnnnnnnnnn ggggg n/f')
 
         return offset, generation_num, isused
+
+    def _load_trailer(self, parser, trailer_pos):
+        """Create the PDFTrailer instance.
+
+        Args:
+            parser: An instance of PDFParser
+            trailer_pos: The starting file position of trailer.
+
+        """
+
+        trailer_dict = None
+
+        for (line, pos) in parser.next_lines(trailer_pos, ensure_pos=True):
+            if line == '':
+                continue
+
+            try:
+                trailer_dict = parser.lexer.get_dictionary(pos)
+                break
+            except PDFLexerError, e:
+                continue
+
+        if trailer_dict is None:
+            return
+
+        self.trailer = PDFTrailer()
+        self.trailer.load_trailer_dict(trailer_dict.data)
