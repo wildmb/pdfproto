@@ -52,3 +52,4 @@ class PDFCrossRefTrailer(PDFTrailer):
         """[number of byte of each entry]"""
 
         return self.trailer_dict.get('W')
+

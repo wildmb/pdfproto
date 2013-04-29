@@ -7,7 +7,7 @@ import logging as logger
 
 # local library import
 from pdfproto.parser.PDFLexer import PDFLexerError
-from pdfproto.trailer.PDFTrailer import PDFTrailer
+from pdfproto.trailer.PDFCrossRefTrailer import PDFCrossRefTrailer
 
 
 class PDFCrossRefStreamError(Exception): pass
@@ -47,4 +47,4 @@ class PDFCrossRefStream:
             logger.error('Should be an indirect object')
                 raise PDFCrossRefSectionError('Should be an indirect object')
 
-        xref_dict = stream.data
+        self.trailer = PDFCrossRefTrailer(stream.data)

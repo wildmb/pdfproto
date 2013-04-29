@@ -137,5 +137,5 @@ class PDFCrossRefSection:
         if trailer_dict is None:
             return
 
-        self.trailer = PDFTrailer()
-        self.trailer.load_trailer_dict(trailer_dict.data)
+        self.trailer = PDFTrailer(trailer_dict.data)
+
