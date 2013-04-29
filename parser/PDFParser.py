@@ -10,7 +10,7 @@ import os
 
 # local library import
 from PDFLexer import PDFLexer
-from ..xref.PDFCrossRefSection import PDFCrossRefSection
+from pdfproto.xref.PDFCrossRefSection import PDFCrossRefSection
 
 
 class PDFParserError(Exception): pass
@@ -108,21 +108,27 @@ class PDFParser:
                 else:
                     end_pos = ix
 
-    def next_lines(self, start_pos=0):
+    def next_lines(self, start_pos=0, ensure_pos=False, skip_comment=True):
         """Yields lines from start_pos
 
         Args:
             start_pos: An integer indicating where we start to split lines.
+            ensure_pos: If true, return a tuple (line, starting_pos).
+            skip_comment: If false, the comment will not be ignored.
 
         Returns:
-            A stripped EOL string.
+            A stripped EOL string. If ensure_pos is True,
+            (line, starting_pos) is yielded.
 
         """
 
         self.stream.seek(start_pos, os.SEEK_SET)
+        prev_pos, curr_pos = start_pos, None
 
         while True:
             data = self.stream.readline()
+            curr_pos = self.stream.tell()
+
             if data == '':
                 break
 
@@ -131,9 +137,23 @@ class PDFParser:
             if len(data) > 0 and data[-1] == '\r':
                 data = data[:-1]
 
-            data = data.split('\r')
-            for line in data:
-                yield line
+            # split by \r
+            ix, pos = 0, 0
+            while ix != -1:
+                ix = data.find('\r', pos)
+
+                line = data[pos:ix] if ix != -1 else data[pos:]
+
+                if skip_comment:
+                    comment_ix = line.find('%')
+                    if comment_ix != -1:
+                        line = data[pos:comment_ix]
+
+                yield (line, prev_pos + pos) if ensure_pos else line
+
+                pos = ix + 1
+
+            prev_pos = curr_pos
 
     def _strip_comment(self, data):
         """Strips comments."""
