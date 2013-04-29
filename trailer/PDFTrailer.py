@@ -8,7 +8,7 @@ import logging as logger
 # local library import
 
 
-class PDFTrailer:
+class PDFTrailer(object):
     """The PDF trailer.
 
     Attributes:
@@ -35,38 +35,42 @@ class PDFTrailer:
 
     """
 
-    def __init__(self):
-        self.size = 0
-        self.prev = None
-        self.root = None
-        self.encrypt = False
-        self.info = None
-        self.id = None
-        self.offset = None
+    def __init__(self, trailer_dict):
 
-    def load_trailer_dict(self, trailer_dict):
+        self.trailer_dict = trailer_dict
 
-        # shall not be an indirect reference
-        if 'Size' in trailer_dict:
-            self.size = trailer_dict['Size']
+    @property
+    def size(self):
+        """The total number of entries in the cross-reference table."""
 
-        # present only if the file has more than 1 cross reference
-        # section
-        if 'Prev' in trailer_dict:
-            self.prev = trailer_dict['Prev']
+        return self.trailer_dict.get('Size')
 
-        # shall be an indirect reference
-        if 'Root' in trailer_dict:
-            self.root = trailer_dict['Root']
+    @property
+    def prev(self):
+        """The byte offset of the previous cross-reference section."""
 
-        # required if document is encrypted
-        if 'Encrypt' in trailer_dict:
-            self.encrypt = trailer_dict['Encrypt']
+        return self.trailer_dict.get('Prev')
 
-        # shall be an indirect reference
-        if 'Info' in trailer_dict:
-            self.info = trailer_dict['Info']
+    @property
+    def root(self):
+        """The catalog dictionary."""
 
-        # required if an Encrypt entry is presented
-        if 'ID' in trailer_dict:
-            self.id = trailer_dict['ID']
+        return self.trailer_dict.get('Root')
+
+    @property
+    def encrypt(self):
+        """The document's encryption dictionary."""
+
+        return self.trailer_dict.get('Encrypt')
+
+    @property
+    def info(self):
+        """The document's information dictionary."""
+
+        return self.trailer_dict.get('Info')
+
+    @property
+    def id(self):
+        """An array of file identifier for the file."""
+
+        return self.trailer_dict.get('ID')
