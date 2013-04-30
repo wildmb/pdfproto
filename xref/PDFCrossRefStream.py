@@ -47,4 +47,7 @@ class PDFCrossRefStream:
             logger.error('Should be an indirect object')
                 raise PDFCrossRefSectionError('Should be an indirect object')
 
-        self.trailer = PDFCrossRefTrailer(stream.data)
+        stream = stream.data
+
+        self.trailer = PDFCrossRefTrailer(stream.stream_dict)
+

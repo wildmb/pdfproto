@@ -11,6 +11,7 @@ import os
 # local library import
 from PDFLexer import PDFLexer
 from pdfproto.xref.PDFCrossRefSection import PDFCrossRefSection
+from pdfproto.xref.PDFCrossRefStream import PDFCrossRefStream
 
 
 class PDFParserError(Exception): pass
@@ -203,21 +204,26 @@ class PDFParser:
             trailers = []
 
         for line in self.next_lines(xref_pos):
-            if line == 'xref':
-                xref = PDFCrossRefSection()
-                xref.load_section(xref_pos)
-                break
+            break
 
-            if xref.trailer is None:
-                logger.error('xref.trailer is None')
-                raise PDFParserError('xref.trailer is None')
+        # determine cross reference type
+        if line == 'xref':
+            xref = PDFCrossRefSection()
+            xref.load_section(xref_pos)
+        else:
+            xref = PDFCrossRefStream()
+            xref.load_stream(xref_pos)
 
-            xrefs.append(xref)
+        # ensure trailer is parsed as well
+        if xref.trailer is None:
+            logger.error('xref.trailer is None')
+            raise PDFParserError('xref.trailer is None')
 
-            trailer = xref.trailer
-            trailers.append(trailer)
+        xrefs.append(xref)
+        trailer = xref.trailer
+        trailers.append(trailer)
 
-            if trailer.prev is None:
-                break
+        if trailer.prev is None:
+            break
 
-            self.get_xref()
+        self.get_xref()

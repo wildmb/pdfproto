@@ -5,6 +5,7 @@
 # third party related import
 
 # local library import
+from pdfproto.filters import filter_factory
 
 
 class PDFBaseObject(object):
@@ -175,7 +176,7 @@ class PDFIndirectObject(PDFBaseObject):
     def __init__(self):
         super(PDFIndirectObject, self).__init__()
         self.object_num = 0
-        self.genration_num = 0
+        self.generation_num = 0
 
 
 class PDFStreamObject(PDFBaseObject):
@@ -183,10 +184,54 @@ class PDFStreamObject(PDFBaseObject):
 
     Attributes:
         data: A sequence of zero ob more bytes.
-        stream_dict: A dict of stream dict
+        raw_data: A sequence of bytes. (may be compressed)
+        stream_dict: An instance of PDFDictObject.
 
     """
 
     def __init__(self):
         super(PDFStreamObject, self).__init__()
-        self.stream_dict = {}
+        self.stream_dict = None
+        self.raw_data = None
+
+    def decode(self):
+
+        if self.raw_data is None:
+            return self.data
+
+        stream_dict = self.stream_dict.data
+
+        filters = self._get_filters()
+        decode_params = self._get_decode_params()
+
+        decoded = self.raw_data
+
+        for f, param in zip(filters, decode_params):
+            print f, param
+            pdf_filter = filter_factory(f, param)
+            decoded = pdf_filter.decode(decoded)
+
+        self.data = decoded
+        self.raw_data = None
+
+        return decoded
+
+    def _get_filters(self):
+
+        stream_dict = self.stream_dict.data
+
+        filters = stream_dict.get('Filter', [])
+        if not isinstance(filters, list):
+            filters = [filters]
+
+        return filters
+
+    def _get_decode_params(self):
+
+        stream_dict = self.stream_dict.data
+
+        decode_params = stream_dict.get('DecodeParms', [])
+        if not isinstance(filter, list):
+            decode_params = [decode_params]
+
+        return decode_params
