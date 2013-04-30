@@ -610,11 +610,11 @@ class PDFLexer:
         if end_pos == -1:
             raise PDFLexerError('unterminated stream')
 
-        ret.end_pos = end_pos + 8
+        ret.end_pos = end_pos + 9
 
         if self.stream[(end_pos - 2):end_pos] == '\r\n':
-            ret.data = self.stream[data_pos:(end_pos - 2)]
+            ret.data = ret.raw_data = self.stream[data_pos:(end_pos - 2)]
         else:
-            ret.data = self.stream[data_pos:(end_pos - 1)]
+            ret.data = ret.raw_data = self.stream[data_pos:(end_pos - 1)]
 
         return ret
