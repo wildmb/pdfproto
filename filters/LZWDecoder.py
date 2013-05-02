@@ -5,6 +5,7 @@
 # third party related imports
 
 # local library imports
+from pdfproto.utils import BitReader, BitReaderError
 
 
 class LZWDecoder:
@@ -13,17 +14,11 @@ class LZWDecoder:
     Rewrite from pdfminer
 
     Attributes:
-        buffer: A byte read from the encoded data.
-        bit_pos: The number of read bits in above buffer.
-        byte_pos: The index of encoded data.
 
     """
 
     def __init__(self):
 
-        self.buffer = 0
-        self.bit_pos = 8
-        self.byte_pos = 0
         self.nbits = 9
         self.table = None
         self.prev_buffer = None
@@ -31,37 +26,13 @@ class LZWDecoder:
     def decode(self, data):
 
         ret = []
+        bit_reader = BitReader(data)
 
-        while self.byte_pos < len(data):
-            code = self._read_bits(data, self.nbits)
+        while bit_reader.bit_pos < len(bit_reader):
+            code = bit_reader.read(self.nbits)
             ret.append(self._feed(code))
 
         return ''.join(ret)
-
-    def _read_bits(self, data, num_bits):
-
-        value = 0
-
-        while True:
-            # number of remaining bits we can get from the
-            # current buffer
-            r = 8 - self.bit_pos
-
-            if num_bits <= r:
-                # read from buffer
-                value = (value << num_bits) | \
-                        (self.buffer >> (r - num_bits) & ((1 << num_bits) - 1))
-                self.bit_pos += num_bits
-                break
-            else:
-                # run out of buffer, read from encoded data
-                value = (value << r) | (self.buffer & ((1 << r) - 1))
-                num_bits -= r
-                self.buffer = ord(data[self.byte_pos])
-                self.byte_pos += 1
-                self.bit_pos = 0
-
-        return value
 
     def _feed(self, code):
 
