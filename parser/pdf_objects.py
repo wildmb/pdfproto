@@ -207,14 +207,20 @@ class PDFStreamObject(PDFBaseObject):
         decoded = self.raw_data
 
         for f, param in zip(filters, decode_params):
-            print f, param
-            pdf_filter = filter_factory(f, param)
+            pdf_filter = filter_factory(f, **param)
             decoded = pdf_filter.decode(decoded)
 
         self.data = decoded
         self.raw_data = None
 
         return decoded
+
+    def get_decoded_data(self):
+
+        if self.raw_data is not None:
+            return self.decode()
+
+        return self.data
 
     def _get_filters(self):
 

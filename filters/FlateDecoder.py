@@ -26,6 +26,5 @@ class FlateDecoder:
         bits_per_component = self.decode_params.get('BitsPerComponent', 8)
         columns = self.decode_params.get('Columns', 1)
 
-        print map(ord, decoded)
         return Predictor.post_predict(decoded, predictor, colors,
                                       bits_per_component, columns)

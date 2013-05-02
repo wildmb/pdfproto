@@ -69,13 +69,13 @@ class PDFCrossRefSection:
 
                 continue
 
-            offset, gen_num, isused = self._get_subsection_body(line)
+            offset, gen_num, isfree = self._get_subsection_body(line)
             if offset is None:
                 logger.error('Invalid cross referrence subsection')
                 raise PDFCrossRefSectionError()
 
             self.offset_dict[(obj_num, gen_num)] = offset
-            self.free_dict[(obj_num, gen_num)] = isused
+            self.free_dict[(obj_num, gen_num)] = isfree
 
             obj_num += 1
             num_remaining -= 1
@@ -106,12 +106,12 @@ class PDFCrossRefSection:
         try:
             offset = int(entry[0])
             generation_num = int(entry[1])
-            isused = entry[2] == 'n'
+            isfree = (entry[2] == 'f')
         except (TypeError, ValueError), e:
             logger.exception(e)
             raise PDFCrossRefSectionError('Should be nnnnnnnnnn ggggg n/f')
 
-        return offset, generation_num, isused
+        return offset, generation_num, isfree
 
     def _load_trailer(self, parser, trailer_pos):
         """Create the PDFTrailer instance.

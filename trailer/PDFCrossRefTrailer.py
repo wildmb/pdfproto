@@ -45,11 +45,14 @@ class PDFCrossRefTrailer(PDFTrailer):
     def index(self):
         """[first object number, number of entries]."""
 
-        return self.trailer_dict.get('Index')
+        # shall be direct object
+        return self.trailer_dict.get('Index',
+                                     [0, self.trailer_dict.get('Size')])
 
     @property
     def w(self):
         """[number of byte of each entry]"""
 
+        # shall be direct object
         return self.trailer_dict.get('W')
 

@@ -48,5 +48,4 @@ endobj"""
                 assert stream_dict['W'] == [1, 4, 0]
 
                 stream_data = stream_obj.decode()
-                print map(ord, stream_data)
 
