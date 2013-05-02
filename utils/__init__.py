@@ -6,4 +6,4 @@
 
 # local library imports
 from pdfproto.utils.BitReader import BitReader, BitReaderError
-
+from pdfproto.utils.BitWriter import BitWriter, BitWriterError

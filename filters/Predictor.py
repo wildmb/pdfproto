@@ -6,6 +6,7 @@ import logging as logger
 # third party related imports
 
 # local library imports
+from pdfproto.utils import BitReader, BitWriter
 
 
 class PredictorError(Exception): pass
@@ -23,7 +24,7 @@ class Predictor:
     PNG_OPTIMUM = 15
 
     @classmethod
-    def post_predict(cls, data, predictor=Predictor.NONE, colors=1,
+    def post_predict(cls, data, predictor=1, colors=1,
                      bits_per_component=8, columns=1):
         """Apply predictor algorithm after filter decode data.
 
@@ -41,7 +42,7 @@ class Predictor:
 
         """
 
-        if predictor == self.NONE:
+        if predictor == cls.NONE:
             return data
 
         if colors not in xrange(1, 5):
@@ -56,7 +57,8 @@ class Predictor:
         bytes_per_row = (comp_per_line * bits_per_component + 7) / 8 + 1
 
         if predictor == cls.TIFF:
-            return cls._tiff_post_predict(data, colors, bits_per_component, columns)
+            return cls._tiff_post_predict(data, colors, bits_per_component,
+                                          columns)
         elif predictor >= cls.PNG_NONE:
             return cls._png_post_predict(data, bytes_per_px, bytes_per_row)
 
@@ -72,7 +74,7 @@ class Predictor:
 
         for row in xrange(num_row):
             ix = row * bytes_per_row
-            line = data[ix:(ix + bytes_per_row)]
+            line = list(data[ix:(ix + bytes_per_row)])
             predictor = 10 + ord(line[0])
             line[0] = '\0'
 
@@ -103,14 +105,35 @@ class Predictor:
                     this_row = line
                     break
 
-            result.append(this_row)
+            result.extend(this_row[1:])
             up_row = this_row
 
-        return ''.join(this_row)
+        return ''.join(result)
 
     @classmethod
     def _tiff_post_predict(cls, data, colors, bits_per_component, columns):
 
         bytes_per_row = (colors * bits_per_component * columns + 7) / 8
         num_row = len(data) / bytes_per_row
+        bit_mask = (1 << bits_per_component) - 1
+
+        bw = BitWriter()
+
+        for row in xrange(num_row):
+            data_ix = row * bytes_per_row
+            line = BitReader(data[data_ix:(data_ix + bytes_per_row)])
+            diff_pixel = [0] * colors
+
+            for col in xrange(columns):
+                pixel = [line.read(bits_per_component) for i in xrange(colors)]
+
+                for ix, (diff, c) in enumerate(zip(diff_pixel, pixel)):
+                    diff_pixel[ix] = (c - diff) & bit_mask
+                    bw.write(diff_pixel[ix], bits_per_component)
+
+            bw.flush()
+
+        bw.flush()
+
+        return str(bw)
 

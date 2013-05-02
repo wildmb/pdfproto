@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-def filter_factory(filter_name, *args):
+def filter_factory(filter_name, **decode_args):
     """Instantiate a filter instance."""
 
     if filter_name == 'ASCIIHexDecode':
@@ -11,10 +11,10 @@ def filter_factory(filter_name, *args):
         return ASCII85Decoder()
     elif filter_name == 'LZWDecode':
         from pdfproto.filters.LZWDecoder import LZWDecoder
-        return LZWDecoder()
+        return LZWDecoder(**decode_args)
     elif filter_name == 'FlateDecode':
         from pdfproto.filters.FlateDecoder import FlateDecoder
-        return FlateDecoder()
+        return FlateDecoder(**decode_args)
     elif filter_name == 'RunLengthDecode':
         from pdfproto.filters.RunLengthDecoder import RunLengthDecoder
         return RunLengthDecoder()

@@ -5,6 +5,7 @@
 # third party related imports
 
 # local library imports
+from pdfproto.filters.Predictor import Predictor
 from pdfproto.utils import BitReader, BitReaderError
 
 
@@ -17,11 +18,12 @@ class LZWDecoder:
 
     """
 
-    def __init__(self):
+    def __init__(self, **decode_args):
 
         self.nbits = 9
         self.table = None
         self.prev_buffer = None
+        self.decode_params = decode_args
 
     def decode(self, data):
 
@@ -32,7 +34,7 @@ class LZWDecoder:
             code = bit_reader.read(self.nbits)
             ret.append(self._feed(code))
 
-        return ''.join(ret)
+        return self._post_predict(''.join(ret))
 
     def _feed(self, code):
 
@@ -67,3 +69,16 @@ class LZWDecoder:
             self.prev_buffer = ret
 
         return ret
+
+    def _post_predict(self, decoded):
+
+        predictor = self.decode_params.get('Predictor', 1)
+        colors = self.decode_params.get('Colors', 1)
+        bits_per_component = self.decode_params.get('BitsPerComponent', 8)
+        columns = self.decode_params.get('Columns', 1)
+        early_change = self.decode_params.get('EarlyChange', 1)
+
+        # TODO: support early_change
+
+        return Predictor.post_predict(decoded, predictor, colors,
+                                      bits_per_component, columns)
