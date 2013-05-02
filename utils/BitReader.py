@@ -10,7 +10,7 @@
 class BitReaderError(Exception): pass
 
 
-class BitReader:
+class BitReader(object):
     """A utility class to read value bits by bits.
 
     Attributes:
@@ -108,7 +108,7 @@ class BitReader:
         if bit_length < 0:
             raise BitReaderError('bit_length(%s) should be greater than 0',
                                  bit_length)
-        elif self.bit_pos + bit_length >= len(self):
+        elif self.bit_pos + bit_length > len(self):
             raise BitReaderError('out of data boundary')
 
         ret = 0
@@ -120,12 +120,12 @@ class BitReader:
 
             if bit_length > remaining_bits:
                 bit_length -= remaining_bits
-                ret |= (byte & ((1 << remaining_bits) - 1)) << bit_length
+                ret |= ((byte & ((1 << remaining_bits) - 1)) << bit_length)
                 byte_ptr += 1
                 bit_ptr = 0
             else:
-                ret |= (byte >> (remaining_bits - bit_length)) & \
-                       ((1 << bit_length) - 1)
+                ret |= ((byte >> (remaining_bits - bit_length)) & \
+                        ((1 << bit_length) - 1))
                 break
 
         return ret
