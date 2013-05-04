@@ -92,15 +92,11 @@ class PDFCrossRefStream:
                 num_remaining -= 1
 
     def _to_int(self, str_data):
-        """Convert multiple bytes to integer.
+        """Convert multiple string bytes to integer.
 
         >>> self._to_int('abc')
         >>> 6382179
 
         """
 
-        ret = 0
-        for s in str_data:
-            ret = ret * 256 + ord(s)
-
-        return ret
+        return reduce(lambda x, y: x * 256 + y, map(ord, str_data))
