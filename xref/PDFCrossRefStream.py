@@ -8,6 +8,8 @@ import logging as logger
 # local library import
 from pdfproto.parser.PDFLexer import PDFLexerError
 from pdfproto.trailer.PDFCrossRefTrailer import PDFCrossRefTrailer
+from pdfproto.xref.PDFCrossRefEntry import (PDFCrossRefEntry,
+                                            PDFCrossRefCompressedEntry)
 
 
 class PDFCrossRefStreamError(Exception): pass
@@ -17,22 +19,18 @@ class PDFCrossRefStream:
     """
 
     Attributes:
-        offset_dict: A dict maps (object_num, generation_num) -> int
-        free_dict: A dict maps (object_num, generation_num) -> bool
+        entries: A list of instances of PDFCrossRefEntry or
+            PDFCrossRefCompressedEntry.
         trailer: An instance of PDFTrailer
 
     """
 
     def __init__(self):
 
-        self.offset_dict = {}
-
-        # TODO: maybe we don't need this
-        self.free_dict = {}
-
+        self.entries = []
         self.trailer = None
 
-    def load_stream(self, parser, xref_pos):
+    def parse(self, parser, xref_pos):
         """Load cross reference stream
 
         Args:
@@ -77,19 +75,19 @@ class PDFCrossRefStream:
                 field_2 = self._to_int(entry[xref_w[1]:])
 
                 if entry_type == 0:
-                    self.offset_dict[(obj_num, field_2)] = field_1
-                    self.free_dict[(obj_num, field_2)] = True
+                    entry = PDFCrossRefEntry(field_1, obj_num,
+                                             field_2, 'f')
                 elif entry_type == 1:
-                    self.offset_dict[(obj_num, field_2)] = field_1
-                    self.free_dict(obj_num, field_2)] = False
+                    entry = PDFCrossRefEntry(field_1, obj_num,
+                                             field_2, 'n')
                 elif entry_type == 2:
-                    self.offset_dict[(obj_num, field_2)] = (field_1, field2)
-                    self.free_dict[(obj_num, field_2)] = False
+                    entry = PDFCrossRefCompressedEntry(field_1, field_2)
                 else:
                     raise PDFCrossRefStreamError(('invalid cross reference'
                                                   'stream entry type: %s'),
                                                  entry_type)
 
+                self.entries.append(entry)
                 obj_num += 1
                 num_remaining -= 1
 
@@ -103,6 +101,6 @@ class PDFCrossRefStream:
 
         ret = 0
         for s in str_data:
-            ret = ret * 8 + ord(s)
+            ret = ret * 256 + ord(s)
 
         return ret

@@ -8,6 +8,7 @@ import logging as logger
 # local library import
 from pdfproto.parser.PDFLexer import PDFLexerError
 from pdfproto.trailer.PDFTrailer import PDFTrailer
+from pdfproto.xref.PDFCrossRefEntry import PDFCrossRefEntry
 
 
 class PDFCrossRefSectionError(Exception): pass
@@ -17,22 +18,17 @@ class PDFCrossRefSection:
     """
 
     Attributes:
-        offset_dict: A dict maps (object_num, generation_num) -> int
-        free_dict: A dict maps (object_num, generation_num) -> bool
+        entries: A list of instances of PDFCrossRefEntry
         trailer: An instance of PDFTrailer
 
     """
 
     def __init__(self):
 
-        self.offset_dict = {}
-
-        # TODO: maybe we don't need this
-        self.free_dict = {}
-
+        self.entries = []
         self.trailer = None
 
-    def load_section(self, parser, xref_pos):
+    def parse(self, parser, xref_pos):
         """Load cross reference section
 
         Args:
@@ -69,13 +65,13 @@ class PDFCrossRefSection:
 
                 continue
 
-            offset, gen_num, isfree = self._get_subsection_body(line)
+            offset, gen_num, state = self._get_subsection_body(line)
             if offset is None:
                 logger.error('Invalid cross referrence subsection')
                 raise PDFCrossRefSectionError()
 
-            self.offset_dict[(obj_num, gen_num)] = offset
-            self.free_dict[(obj_num, gen_num)] = isfree
+            self.entries.append(PDFCrossRefEntry(offset, obj_num,
+                                                 gen_num, state))
 
             obj_num += 1
             num_remaining -= 1
@@ -106,12 +102,12 @@ class PDFCrossRefSection:
         try:
             offset = int(entry[0])
             generation_num = int(entry[1])
-            isfree = (entry[2] == 'f')
+            state = entry[2]
         except (TypeError, ValueError), e:
             logger.exception(e)
             raise PDFCrossRefSectionError('Should be nnnnnnnnnn ggggg n/f')
 
-        return offset, generation_num, isfree
+        return offset, generation_num, state
 
     def _load_trailer(self, parser, trailer_pos):
         """Create the PDFTrailer instance.
