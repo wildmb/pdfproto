@@ -194,36 +194,30 @@ class PDFParser:
 
         return ret
 
-    def get_xref(self, xref_pos, xrefs=None, trailers=None):
+    def get_xref(self, xref_pos, xrefs=None):
         """Get the cross reference table."""
 
         if xrefs is None:
             xrefs = []
 
-        if trailers is None:
-            trailers = []
-
+        # fetch one single line
         for line in self.next_lines(xref_pos):
             break
 
         # determine cross reference type
-        if line == 'xref':
-            xref = PDFCrossRefSection()
-            xref.load_section(xref_pos)
-        else:
-            xref = PDFCrossRefStream()
-            xref.load_stream(xref_pos)
+        xref = PDFCrossRefSection() if line == 'xref' else PDFCrossRefStream()
+        xref.parse(self, xref_pos)
+        xrefs.append(xref)
 
         # ensure trailer is parsed as well
         if xref.trailer is None:
             logger.error('xref.trailer is None')
             raise PDFParserError('xref.trailer is None')
 
-        xrefs.append(xref)
-        trailer = xref.trailer
-        trailers.append(trailer)
+        if xref.trailer.xref_stream is not None:
+            self.get_xref(xref.trailer.xref_stream, xrefs)
 
-        if trailer.prev is None:
-            break
+        if xref.trailer.prev is not None:
+            self.get_xref(xref.trailer.prev, xrefs)
 
-        self.get_xref()
+        return xrefs

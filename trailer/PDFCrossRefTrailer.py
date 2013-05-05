@@ -56,3 +56,8 @@ class PDFCrossRefTrailer(PDFTrailer):
         # shall be direct object
         return self.trailer_dict.get('W')
 
+    @property
+    def xref_stream(self):
+        """XRefStm value."""
+
+        return self.trailer_dict.get('XRefStm')
