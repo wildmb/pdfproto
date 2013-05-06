@@ -17,7 +17,7 @@ from pdfproto.xref.PDFCrossRefSection import (PDFCrossRefEntry,
 
 class TestPDFCrossRefSection:
 
-    def test_load_section1(self):
+    def test_parse_1(self):
 
         test_data = """\
 xref
@@ -58,7 +58,7 @@ trailer
 
                 assert xref.trailer.trailer_dict == {}
 
-    def test_load_section(self):
+    def test_parse_2(self):
 
         test_data = """\
 xref
@@ -99,7 +99,7 @@ trailer
 
                 assert xref.trailer.trailer_dict == {}
 
-    def test_load_trailer(self):
+    def test_parse_3(self):
 
         test_data = """\
 xref

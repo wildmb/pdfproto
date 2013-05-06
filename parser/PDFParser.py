@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # standard library import
+from collections import deque
 from contextlib import closing
 import logging as logger
 import mmap
@@ -194,30 +195,54 @@ class PDFParser:
 
         return ret
 
-    def get_xref(self, xref_pos, xrefs=None):
-        """Get the cross reference table."""
+    def get_xref(self, xref_pos):
+        """Get the cross reference tables.
 
-        if xrefs is None:
-            xrefs = []
+        Args:
+            xref_pos: The position of the latest updated trailer of the
+                PDF.
 
-        # fetch one single line
-        for line in self.next_lines(xref_pos):
-            break
+        Returns:
+            A list of instances of PDFCrossRefSection or
+            PDFCrossRefStream which sorted by increment update order.
 
-        # determine cross reference type
-        xref = PDFCrossRefSection() if line == 'xref' else PDFCrossRefStream()
-        xref.parse(self, xref_pos)
-        xrefs.append(xref)
+        """
 
-        # ensure trailer is parsed as well
-        if xref.trailer is None:
-            logger.error('xref.trailer is None')
-            raise PDFParserError('xref.trailer is None')
+        xref_queue = deque([xref_pos])
+        ret = []
 
-        if xref.trailer.xref_stream is not None:
-            self.get_xref(xref.trailer.xref_stream, xrefs)
+        while len(xref_queue) > 0:
 
-        if xref.trailer.prev is not None:
-            self.get_xref(xref.trailer.prev, xrefs)
+            start_xref_pos = xref_queue.popleft()
 
-        return xrefs
+            # fetch one single line
+            for line in self.next_lines(start_xref_pos):
+                break
+
+            # determine cross reference type
+            xref = PDFCrossRefSection() if line == 'xref' else PDFCrossRefStream()
+            xref.parse(self, xref_pos)
+            ret.append(xref)
+
+            # ensure trailer is parsed as well
+            if xref.trailer is None:
+                logger.error('xref.trailer is None')
+                raise PDFParserError('xref.trailer is None')
+
+            # look up XRefStm
+            if xref.trailer.xref_stream is not None:
+                if not isinstance(xref.trailer.xref_stream, int):
+                    logger.error('XRefStm should be an int')
+                    raise PDFParserError('trailer.xref_stream should be an int')
+
+                xref_queue.append(xref.trailer.xref_stream)
+
+            # look up Prev
+            if xref.trailer.prev is not None:
+                if not isinstance(xref.trailer.prev, int):
+                    logger.error('Prev should be an int')
+                    raise PDFParserError('trailer.prev should be an int')
+
+                xref_queue.append(xref.trailer.prev)
+
+        return ret
