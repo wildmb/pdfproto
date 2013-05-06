@@ -10,7 +10,9 @@ from tempfile import NamedTemporaryFile
 
 # local library imports
 from pdfproto.parser.PDFParser import PDFParser
-from pdfproto.xref.PDFCrossRefSection import PDFCrossRefSection
+from pdfproto.trailer.PDFTrailer import PDFTrailer
+from pdfproto.xref.PDFCrossRefSection import (PDFCrossRefEntry,
+                                              PDFCrossRefSection)
 
 
 class TestPDFCrossRefSection:
@@ -30,22 +32,14 @@ xref
 trailer
 <<>>"""
 
-        offset_dict = {
-                (0, 65535): 3,
-                (1, 0): 17,
-                (2, 0): 81,
-                (3, 7): 0,
-                (4, 0): 331,
-                (5, 0): 409
-        }
-        free_dict = {
-                (0, 65535): False,
-                (1, 0): True,
-                (2, 0): True,
-                (3, 7): False,
-                (4, 0): True,
-                (5, 0): True
-        }
+        entries = (
+                PDFCrossRefEntry(3, 0, 65535, 'f'),
+                PDFCrossRefEntry(17, 1, 0, 'n'),
+                PDFCrossRefEntry(81, 2, 0, 'n'),
+                PDFCrossRefEntry(0, 3, 7, 'f'),
+                PDFCrossRefEntry(331, 4, 0, 'n'),
+                PDFCrossRefEntry(409, 5, 0, 'n'),
+        )
 
         with closing(NamedTemporaryFile()) as f:
             f.write(test_data)
@@ -56,10 +50,13 @@ trailer
                 parser.open(f.name)
 
                 xref = PDFCrossRefSection()
-                xref.load_section(parser, 0)
+                xref.parse(parser, 0)
+                print xref.trailer.__dict__
 
-                assert xref.offset_dict == offset_dict
-                assert xref.free_dict == free_dict
+                for ix, entry in enumerate(entries):
+                    assert entry == xref.entries[ix]
+
+                assert xref.trailer.trailer_dict == {}
 
     def test_load_section(self):
 
@@ -78,20 +75,13 @@ xref
 trailer
 <<>>"""
 
-        offset_dict = {
-                (0, 65535): 0,
-                (3, 0): 25325,
-                (23, 2): 25518,
-                (24, 0): 25635,
-                (30, 0): 25777,
-        }
-        free_dict = {
-                (0, 65535): False,
-                (3, 0): True,
-                (23, 2): True,
-                (24, 0): True,
-                (30, 0): True,
-        }
+        entries = (
+                PDFCrossRefEntry(0, 0, 65535, 'f'),
+                PDFCrossRefEntry(25325, 3, 0, 'n'),
+                PDFCrossRefEntry(25518, 23, 2, 'n'),
+                PDFCrossRefEntry(25635, 24, 0, 'n'),
+                PDFCrossRefEntry(25777, 30, 0, 'n'),
+        )
 
         with closing(NamedTemporaryFile()) as f:
             f.write(test_data)
@@ -102,10 +92,12 @@ trailer
                 parser.open(f.name)
 
                 xref = PDFCrossRefSection()
-                xref.load_section(parser, 0)
+                xref.parse(parser, 0)
 
-                assert xref.offset_dict == offset_dict
-                assert xref.free_dict == free_dict
+                for ix, entry in enumerate(entries):
+                    assert entry == xref.entries[ix]
+
+                assert xref.trailer.trailer_dict == {}
 
     def test_load_trailer(self):
 
@@ -141,7 +133,7 @@ trailer
                 parser.open(f.name)
 
                 xref = PDFCrossRefSection()
-                xref.load_section(parser, 0)
+                xref.parse(parser, 0)
 
                 trailer = xref.trailer
 

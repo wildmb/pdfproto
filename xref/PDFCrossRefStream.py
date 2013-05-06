@@ -43,7 +43,7 @@ class PDFCrossRefStream:
             stream = parser.lexer.get_indirect_object(xref_pos)
         except PDFLexerError, e:
             logger.error('Should be an indirect object')
-                raise PDFCrossRefSectionError('Should be an indirect object')
+            raise PDFCrossRefSectionError('Should be an indirect object')
 
         stream = stream.data
 
