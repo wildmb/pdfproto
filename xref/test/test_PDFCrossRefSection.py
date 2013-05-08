@@ -11,8 +11,8 @@ from tempfile import NamedTemporaryFile
 # local library imports
 from pdfproto.parser.PDFParser import PDFParser
 from pdfproto.trailer.PDFTrailer import PDFTrailer
-from pdfproto.xref.PDFCrossRefSection import (PDFCrossRefEntry,
-                                              PDFCrossRefSection)
+from pdfproto.xref.PDFCrossRefEntry import PDFCrossRefEntry
+from pdfproto.xref.PDFCrossRefSection import PDFCrossRefSection
 
 
 class TestPDFCrossRefSection:
