@@ -14,5 +14,5 @@ PDFCrossRefEntry = namedtuple(
 
 PDFCrossRefCompressedEntry = namedtuple(
                                 '_PDFCrossRefCompressedEntry',
-                                ('obj_stream_num', 'obj_index')
+                                ('offset', 'obj_stream_num', 'obj_index')
                              )
