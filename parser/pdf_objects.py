@@ -205,8 +205,8 @@ class PDFStreamObject(PDFBaseObject):
         decode_params = self._get_decode_params()
 
         decoded = self.raw_data
-
-        for f, param in zip(filters, decode_params):
+        for ix, f in enumerate(filters):
+            param = {} if ix >= len(decode_params) else decode_params[ix]
             pdf_filter = filter_factory(f, **param)
             decoded = pdf_filter.decode(decoded)
 
@@ -237,7 +237,7 @@ class PDFStreamObject(PDFBaseObject):
         stream_dict = self.stream_dict.data
 
         decode_params = stream_dict.get('DecodeParms', [])
-        if not isinstance(filter, list):
+        if not isinstance(decode_params, list):
             decode_params = [decode_params]
 
         return decode_params
