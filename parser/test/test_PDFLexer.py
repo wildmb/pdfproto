@@ -310,7 +310,7 @@ class TestPDFLexer:
                     p = PDFLexer(stream)
                     io = p.get_indirect_object(0)
                     assert io.object_num == obj_num
-                    assert io.genration_num == gen_num
+                    assert io.generation_num == gen_num
                     assert io.start_pos == 0
                     assert io.end_pos == len(test_str)
                     assert json.dumps(io.data.data, sort_keys=True) == \
@@ -330,7 +330,7 @@ class TestPDFLexer:
                 s = p.get_stream(0)
                 assert s.data == ''
                 assert s.start_pos == 0
-                assert s.end_pos == 5 + 5 + len(eol1) + len(eol2) + 8 + 1
+                assert s.end_pos == 5 + 6 + len(eol1) + len(eol2) + 8 + 1
                 assert s.stream_dict.data == {}
 
         with closing(NamedTemporaryFile()) as f:
@@ -345,5 +345,5 @@ class TestPDFLexer:
                 s = p.get_stream(0)
                 assert s.data == data
                 assert s.start_pos == 0
-                assert s.end_pos == 5 + 5 + len(eol1) + len(data) + len(eol2) + 8 + 1
+                assert s.end_pos == 5 + 6 + len(eol1) + len(data) + len(eol2) + 8 + 1
                 assert s.stream_dict.data == {}
