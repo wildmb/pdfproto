@@ -43,11 +43,11 @@ class PDFCrossRefStream:
             stream = parser.lexer.get_indirect_object(xref_pos)
         except PDFLexerError, e:
             logger.error('Should be an indirect object')
-            raise PDFCrossRefSectionError('Should be an indirect object')
+            raise PDFCrossRefStreamError('Should be an indirect object')
 
         stream = stream.data
 
-        self.trailer = PDFCrossRefTrailer(stream.stream_dict)
+        self.trailer = PDFCrossRefTrailer(stream.stream_dict.data)
 
         # get decoded data
         xref_data = stream.get_decoded_data()
@@ -71,8 +71,8 @@ class PDFCrossRefStream:
                 else:
                     entry_type = self._to_int(entry[:xref_w[0]])
 
-                field_1 = self._to_int(entry[xref_w[0]:xref_w[1]])
-                field_2 = self._to_int(entry[xref_w[1]:])
+                field_1 = self._to_int(entry[xref_w[0]:(xref_w[0] + xref_w[1])])
+                field_2 = self._to_int(entry[(xref_w[0] + xref_w[1]):])
 
                 if entry_type == 0:
                     entry = PDFCrossRefEntry(field_1, obj_num,
@@ -81,7 +81,8 @@ class PDFCrossRefStream:
                     entry = PDFCrossRefEntry(field_1, obj_num,
                                              field_2, 'n')
                 elif entry_type == 2:
-                    entry = PDFCrossRefCompressedEntry(field_1, field_2)
+                    entry = PDFCrossRefCompressedEntry(obj_num, field_1,
+                                                       field_2)
                 else:
                     raise PDFCrossRefStreamError(('invalid cross reference'
                                                   'stream entry type: %s'),
