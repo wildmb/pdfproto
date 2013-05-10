@@ -66,6 +66,7 @@ class PDFCrossRefStream:
                 entry = xref_data[xref_data_ptr:(xref_data_ptr + sum_w_bytes)]
                 xref_data_ptr += sum_w_bytes
 
+                # Type field's default value is 1
                 if xref_w[0] == 0:
                     entry_type = 1
                 else:
