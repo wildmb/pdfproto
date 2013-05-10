@@ -4,6 +4,8 @@
 from contextlib import closing
 import mmap
 import re
+import urllib
+from urlparse import urlparse
 
 # third party related imports
 
@@ -22,14 +24,23 @@ class SimplePDFScanner(object):
 
     def _scan(self):
 
-        with closing(open(self.filename, 'rb')) as f:
-            with closing(mmap.mmap(f.fileno(), 0,
-                                   prot=mmap.PROT_READ)) as stream:
-                for match_obj in self.RE_OBJ_PATTERN.finditer(stream):
-                    obj_num, gen_num = match_obj.groups()
-                    offset = match_obj.start()
-                    obj = (int(obj_num), int(gen_num), offset)
-                    self.object_list.append(obj)
+        pr = urlparse(self.filename)
+
+        if pr.netloc == '':
+            with closing(open(self.filename, 'rb')) as f:
+                with closing(mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)) as stream:
+                    self._find_obj(stream)
+        else:
+            with closing(urllib.urlopen(self.filename)) as f:
+                self._find_obj(f.read())
+
+    def _find_obj(self, stream):
+
+        for match_obj in self.RE_OBJ_PATTERN.finditer(stream):
+            obj_num, gen_num = match_obj.groups()
+            offset = match_obj.start()
+            obj = (int(obj_num), int(gen_num), offset)
+            self.object_list.append(obj)
 
     @property
     def objects(self):
