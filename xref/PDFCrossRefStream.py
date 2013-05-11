@@ -82,8 +82,8 @@ class PDFCrossRefStream:
                     entry = PDFCrossRefEntry(field_1, obj_num,
                                              field_2, 'n')
                 elif entry_type == 2:
-                    entry = PDFCrossRefCompressedEntry(obj_num, field_1,
-                                                       field_2)
+                    entry = PDFCrossRefCompressedEntry(field_1, field_2,
+                                                       obj_num)
                 else:
                     raise PDFCrossRefStreamError(('invalid cross reference'
                                                   'stream entry type: %s'),
